@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Git pre-push hook → run the secret scanner over the range being pushed.
+#
+# This is a DETERMINISTIC backstop that fires on every push (including a manual
+# `git push` outside any Claude session). It is complementary to Claude's
+# judgement-based review, not a replacement.
+#
+# Install (per repo):
+#   cp hooks/githooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+# or point git at a tracked hooks dir:
+#   git config core.hooksPath hooks/githooks
+#
+# Adjust SCANNER if you installed secret-scan.sh elsewhere.
+set -euo pipefail
+
+SCANNER="${SECRET_SCAN:-$HOME/.claude/hooks/secret-scan.sh}"
+if [ ! -x "$SCANNER" ]; then
+  # Not installed where expected — don't block the push, just warn.
+  echo "pre-push: secret-scan.sh not found at $SCANNER (set \$SECRET_SCAN); skipping." >&2
+  exit 0
+fi
+
+# git feeds pushed refs on stdin: "<local ref> <local sha> <remote ref> <remote sha>"
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "${local_sha:-}" ] && continue
+  # Deleting a branch (all-zero local sha) → nothing to scan.
+  case "$local_sha" in *[!0]*) : ;; *) continue ;; esac
+
+  if printf '%s' "$remote_sha" | grep -qE '^0+$'; then
+    range="$local_sha"                 # new branch on the remote: scan the tip commit
+  else
+    range="$remote_sha..$local_sha"    # existing branch: scan only the new commits
+  fi
+
+  if ! "$SCANNER" "$range"; then
+    status=1
+  fi
+done
+
+exit "$status"

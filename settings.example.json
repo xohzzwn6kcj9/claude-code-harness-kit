@@ -1,20 +1,14 @@
 {
-  "//": "Example wiring for ~/.claude/settings.json — merge the hooks block (and optionally the permissions.deny baseline) into your own settings. Hook order matters only for readability; an exit-2 block from any hook always wins over an allow.",
+  "//": "Example wiring for ~/.claude/settings.json. Merge the blocks you want. Hook order within a matcher does not affect safety — an exit-2 block from ANY hook always wins, and a hook 'allow' never overrides a settings deny rule. The bash-guards are OPINIONATED (worktree workflow + personal bash style); include only the ones you want.",
   "permissions": {
     "deny": [
       "Bash(rm -rf /:*)",
       "Bash(rm -rf /*)",
       "Bash(rm -rf ~:*)",
       "Bash(rm -rf $HOME:*)",
-      "Bash(rm -rf .:*)",
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
-      "Bash(git reset --hard origin/main:*)",
-      "Bash(git reset --hard origin/master:*)",
       "Bash(npm publish:*)",
-      "Bash(pnpm publish:*)",
-      "Bash(yarn publish:*)",
-      "Bash(twine upload:*)",
       "Bash(curl * | sh)",
       "Bash(curl * | bash)",
       "Bash(wget * | sh)",
@@ -26,19 +20,36 @@
       {
         "matcher": "Bash|Read",
         "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/deny-secret-file-reads.sh"
-          }
+          { "type": "command", "command": "~/.claude/hooks/deny-secret-file-reads.sh" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/git-branch-switch-guard.sh" },
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/xargs-procsub-guard.sh" },
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/brace-expansion-guard.sh" },
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/grep-tool-guard.sh" },
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/compound-cd-guard.sh" },
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/temp-dir-guard.sh" }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/temp-dir-guard.sh" }
+        ]
+      },
+      {
+        "matcher": "mcp__.*playwright.*__browser_take_screenshot",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/playwright-screenshot-guard.sh" }
         ]
       },
       {
         "matcher": ".*",
         "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/auto-approve-readonly.sh"
-          }
+          { "type": "command", "command": "~/.claude/hooks/auto-approve-readonly.sh" }
         ]
       }
     ]
