@@ -1,0 +1,10 @@
+{
+  "//": "Lean profile machine-local settings. Copy to ~/.claude/settings.local.json. Sets a Sonnet model for a token-capped plan and keeps effort modest. Adjust the model id to the current Sonnet (check `claude --version` / your plan).",
+  "model": "claude-sonnet-4-6",
+  "effortLevel": "medium",
+  "permissions": {
+    "additionalDirectories": [
+      "~/tmp"
+    ]
+  }
+}
