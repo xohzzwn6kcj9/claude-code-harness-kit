@@ -158,7 +158,8 @@ Playwright MCP는 자동 명명된 스크린샷을 git-ignore된 `.playwright-mc
 이 가드들은 특정한 작업 스타일(git-worktree 워크플로, 프롬프트 없는 무인 `/loop` 실행,
 `Grep`/`Read` 도구로 유도)을 인코딩합니다. 그 습관을 공유한다면 정말 유용하지만 아니면 잡음일
 뿐이라 — 코어 훅과 분리해 두었으니 원하는 것만 설치하세요. 각각 exit 2로 차단하며 자기 교정 메시지를
-출력하거나(또는 deny/nudge JSON을 내보냄), 파싱 오류 시에는 모두 **fail open**합니다.
+출력하거나(또는 deny/nudge JSON을 내보냄), 파싱 오류 시에는 모두 **fail open**합니다. (예외:
+`approve-tmp-rm.sh`는 차단이 아니라 `~/tmp` 파일 삭제를 **승인**하는 temp-dir-guard의 짝입니다.)
 
 | 가드 | 차단 대상 | 이유 |
 |-------|--------|-----|
@@ -168,6 +169,7 @@ Playwright MCP는 자동 명명된 스크린샷을 git-ignore된 `.playwright-mc
 | `grep-tool-guard.sh` | 따옴표 없는 `grep --include=*glob`(deny); 임시방편 `grep -r`/`find -name`(nudge) | `grep --include=*.py`는 zsh에서 중단됩니다(glob nomatch). `Grep` 도구 / repo-radar로 유도합니다. |
 | `compound-cd-guard.sh` | 복합 명령 안의 상대 `cd`(`cd src && …`) | 체인 안의 상대 `cd`는 정적으로 해석 불가(자동 승인 안 됨)이고, 절반만 실행된 `cd <rel> && git merge`는 메인 워크트리를 망가뜨릴 수 있습니다. 절대 경로/`~`/`$VAR`, 그리고 단독 `cd` 하나는 허용합니다. |
 | `temp-dir-guard.sh` | `/tmp` / `/var/tmp` / `$TMPDIR`로의 쓰기 | `~/tmp` 스크래치 관례를 강제합니다. `/tmp`에서의 읽기는 여전히 통과합니다. 순수 opt-in — 이 관례를 안 쓰면 건너뛰세요. |
+| `approve-tmp-rm.sh` *(승인)* | — (유일한 **승인** 가드) | temp-dir-guard의 짝. `~/tmp` 아래 **파일** 삭제(`rm -f ~/tmp/...`)만 프롬프트 없이 승인합니다 — 단일 명령·`-r`/`-R` 제외·`..` traversal 차단·그 외 전부 위임(fail-open). `~/tmp` 스크래치 관례를 완성합니다. |
 
 ---
 
