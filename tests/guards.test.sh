@@ -27,6 +27,8 @@ pas() { local o; o=$(printf '%s' "$2" | bash "$1" 2>/dev/null); [ $? -eq 0 ] && 
 den() { local o; o=$(printf '%s' "$2" | bash "$1" 2>/dev/null); case "$o" in *'"permissionDecision":"deny"'*) note;; *) err "expected DENY-json: $3";; esac; }
 # expect exit 0 and NOT a deny (a non-blocking nudge / additionalContext is fine)
 nd()  { local o; o=$(printf '%s' "$2" | bash "$1" 2>/dev/null); [ $? -eq 0 ] || { err "expected exit 0: $3"; return; }; case "$o" in *'"permissionDecision":"deny"'*) err "expected NOT-deny: $3";; *) note;; esac; }
+# expect exit 0 WITH an allow JSON on stdout (an approver hook, e.g. approve-tmp-rm)
+alw() { local o; o=$(printf '%s' "$2" | bash "$1" 2>/dev/null); case "$o" in *'"permissionDecision":"allow"'*) note;; *) err "expected ALLOW-json: $3";; esac; }
 
 G="$H/bash-guards"
 
@@ -51,6 +53,17 @@ blk "$G/temp-dir-guard.sh"        "$(writep '/tmp/x.txt')"             'Write in
 blk "$G/temp-dir-guard.sh"        "$(bashp 'echo hi > /var/tmp/y')"    'redirect into /var/tmp'
 pas "$G/temp-dir-guard.sh"        "$(writep '/home/u/proj/x.txt')"     'Write into project'
 pas "$G/temp-dir-guard.sh"        "$(bashp 'cat /tmp/someones-artifact')" 'read from /tmp'
+
+A="$G/approve-tmp-rm.sh"
+alw "$A" "$(bashp '/bin/rm -f ~/tmp/written-body.txt ~/tmp/source-body.txt')" 'rm files under ~/tmp'
+alw "$A" "$(bashp 'rm ~/tmp/a.txt')"                  'bare rm of a ~/tmp file'
+alw "$A" "$(bashp 'rm -f ~/tmp/scratch/build.log')"   'rm nested ~/tmp file'
+pas "$A" "$(bashp 'rm -rf ~/tmp/dir')"                'recursive removal defers'
+pas "$A" "$(bashp 'rm -f ~/tmp/a.txt /etc/passwd')"   'mixed target defers'
+pas "$A" "$(bashp 'rm -f ~/tmp/../secret')"           'traversal defers'
+pas "$A" "$(bashp 'rm -f ~/tmp/a && echo done')"      'compound defers'
+pas "$A" "$(bashp 'rm -f /etc/passwd')"               'outside ~/tmp defers'
+pas "$A" "$(bashp 'cat ~/tmp/a.txt')"                 'non-rm command defers'
 
 blk "$G/git-branch-switch-guard.sh" "$(bashpc 'git checkout feature-x' '/home/u/repo')"          'switch existing in main wt'
 pas "$G/git-branch-switch-guard.sh" "$(bashpc 'git checkout main' '/home/u/repo')"               'switch to main'
