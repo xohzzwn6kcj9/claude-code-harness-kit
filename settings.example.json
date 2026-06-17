@@ -1,6 +1,11 @@
 {
   "//": "Example wiring for ~/.claude/settings.json. Merge the blocks you want. Hook order within a matcher does not affect safety — an exit-2 block from ANY hook always wins, and a hook 'allow' never overrides a settings deny rule. The bash-guards are OPINIONATED (worktree workflow + personal bash style); include only the ones you want.",
   "permissions": {
+    "//allow": "Self-test allowlist so `bash tests/run.sh` / `tests/guards.test.sh` run prompt-free when developing this kit. `bash` is intentionally NOT wildcarded (that would defeat the permission system) — only these two scripts are allowed.",
+    "allow": [
+      "Bash(bash tests/run.sh:*)",
+      "Bash(bash tests/guards.test.sh:*)"
+    ],
     "deny": [
       "Bash(rm -rf /:*)",
       "Bash(rm -rf /*)",
