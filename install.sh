@@ -9,21 +9,23 @@
 #
 # Usage:
 #   ./install.sh              # install core hooks only
-#   ./install.sh --all        # also install the bash-guards and repo-radar skill
+#   ./install.sh --all        # also install the bash-guards, repo-radar + worktree skills
 #   ./install.sh --guards     # core hooks + opinionated bash-guards
 #   ./install.sh --radar      # core hooks + repo-radar skill
+#   ./install.sh --worktree   # core hooks + worktree skill
 #   CLAUDE_DIR=/path ./install.sh   # install into a non-default ~/.claude
 
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
 DEST="${CLAUDE_DIR:-$HOME/.claude}"
-WANT_GUARDS=0; WANT_RADAR=0
+WANT_GUARDS=0; WANT_RADAR=0; WANT_WORKTREE=0
 for a in "$@"; do
   case "$a" in
-    --all)    WANT_GUARDS=1; WANT_RADAR=1 ;;
-    --guards) WANT_GUARDS=1 ;;
-    --radar)  WANT_RADAR=1 ;;
+    --all)      WANT_GUARDS=1; WANT_RADAR=1; WANT_WORKTREE=1 ;;
+    --guards)   WANT_GUARDS=1 ;;
+    --radar)    WANT_RADAR=1 ;;
+    --worktree) WANT_WORKTREE=1 ;;
     *) echo "unknown option: $a" >&2; exit 2 ;;
   esac
 done
@@ -61,6 +63,12 @@ if [ "$WANT_RADAR" = 1 ]; then
   copy "$SRC/skills/repo-radar/SKILL.md" "$DEST/skills/repo-radar/SKILL.md"
   copy "$SRC/skills/repo-radar/references/classify-heuristics.md" \
        "$DEST/skills/repo-radar/references/classify-heuristics.md"
+fi
+
+# --- worktree skill (opt-in) ---
+if [ "$WANT_WORKTREE" = 1 ]; then
+  copy "$SRC/skills/worktree/scripts/worktree.sh" "$DEST/skills/worktree/scripts/worktree.sh"
+  copy "$SRC/skills/worktree/SKILL.md"            "$DEST/skills/worktree/SKILL.md"
 fi
 
 cat <<EOF

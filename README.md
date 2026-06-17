@@ -17,6 +17,7 @@ Everything is opt-in and à-la-carte — install the pieces you want, skip the r
 | [`hooks/playwright-screenshot-guard.sh`](hooks/playwright-screenshot-guard.sh) | PreToolUse | Keeps Playwright MCP screenshots out of the repo root (relative filenames leak untracked PNGs). |
 | [`hooks/bash-guards/`](hooks/bash-guards) | PreToolUse | **Opinionated** quality-of-life guards (see below). Each is independent; install only what you like. |
 | [`skills/repo-radar/`](skills/repo-radar) | skill | Read-only git/branch/merge/PR/search analysis run through Python (no shell), so it dodges zsh word-splitting, glob traps, and chained-command prompts. |
+| [`skills/worktree/`](skills/worktree) | skill | Git worktree lifecycle (create → sync → push/pr → cleanup) with a pre-push test gate, `.worktreeconfig` base/target, and graceful no-remote degrade. |
 
 Two design rules run through all of it:
 
@@ -34,9 +35,10 @@ cd claude-code-harness-kit
 bash tests/run.sh && bash tests/guards.test.sh   # optional self-test, expect "fail: 0"
 
 ./install.sh            # core hooks only
-./install.sh --all      # core hooks + bash-guards + repo-radar skill
+./install.sh --all      # core hooks + bash-guards + repo-radar + worktree skills
 ./install.sh --guards   # core + opinionated bash-guards
 ./install.sh --radar    # core + repo-radar skill
+./install.sh --worktree # core + worktree skill
 ```
 
 Then merge the hook wiring into `~/.claude/settings.json` — see
@@ -192,6 +194,31 @@ python3 ~/.claude/skills/repo-radar/scripts/radar.py search code "TODO" --ext py
 See [`skills/repo-radar/SKILL.md`](skills/repo-radar/SKILL.md) for the full command list. It's a
 standard Claude Code skill — install it under `~/.claude/skills/` (via `./install.sh --radar`) and
 Claude will discover it.
+
+---
+
+## worktree (skill)
+
+Automates the git worktree lifecycle so feature work stays isolated and the main checkout never
+leaves the base branch: **create → work (+ sync) → push / pr → cleanup**.
+
+```
+bash ~/.claude/skills/worktree/scripts/worktree.sh create  my-feature
+bash ~/.claude/skills/worktree/scripts/worktree.sh sync    my-feature
+bash ~/.claude/skills/worktree/scripts/worktree.sh push    my-feature   # test gate + push (no PR)
+bash ~/.claude/skills/worktree/scripts/worktree.sh pr      my-feature   # + GitHub PR (if gh present)
+bash ~/.claude/skills/worktree/scripts/worktree.sh cleanup my-feature   # idempotent; keeps the branch
+```
+
+- **base / target branches** resolve from an optional repo-root `.worktreeconfig` (`base=`,
+  `target=`, `test_cmd=`), else the repo's default branch, else `main`. `push`/`pr` run a
+  **pre-push test gate** (auto-detected build tool, or `WORKTREE_TEST_CMD` / `.worktreeconfig
+  test_cmd`) that aborts the push on failure.
+- **`push` vs `pr`**: `push` stops after pushing (use it when a reviewer bot or you open the PR);
+  `pr` also opens a GitHub PR to the target. **No remote** → both degrade to local-merge guidance.
+- Trim output with `--tail N` / `--head N` (no pipe needed).
+
+See [`skills/worktree/SKILL.md`](skills/worktree/SKILL.md). Install via `./install.sh --worktree`.
 
 ---
 
