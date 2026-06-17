@@ -1,5 +1,7 @@
 # claude-code-harness-kit
 
+[![CI](https://github.com/xohzzwn6kcj9/claude-code-harness-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/xohzzwn6kcj9/claude-code-harness-kit/actions/workflows/ci.yml)
+
 [Claude Code](https://code.claude.com) 훅 모음과 읽기 전용 repo 분석 스킬 하나로 이루어진 작은
 키트입니다. 핵심 지향점은 **프롬프트 마찰은 줄이되 안전성은 그대로**입니다 — 명백히 읽기 전용인
 동작은 자동 승인하고, 시크릿을 흘리거나 상태를 망가뜨리는 동작은 강제 차단하며, 그 외에는 끼어들지
