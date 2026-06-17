@@ -1,0 +1,5 @@
+# worktree skill config — dogfoods skills/worktree against this repo.
+# Keys (all optional): base = fork/sync source · target = PR destination · test_cmd = full-test command.
+base=main
+target=main
+test_cmd=bash tests/run.sh && bash tests/guards.test.sh
