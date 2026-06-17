@@ -17,6 +17,7 @@
 | [`hooks/playwright-screenshot-guard.sh`](hooks/playwright-screenshot-guard.sh) | PreToolUse | Playwright MCP 스크린샷이 repo 루트에 떨어지지 않게 막습니다(상대 경로 파일명은 추적되지 않는 PNG를 흘립니다). |
 | [`hooks/bash-guards/`](hooks/bash-guards) | PreToolUse | **취향이 반영된** 편의용 가드(아래 참고). 각각 독립적이라 원하는 것만 설치하세요. |
 | [`skills/repo-radar/`](skills/repo-radar) | skill | 읽기 전용 git/branch/merge/PR/검색 분석을 Python(셸 미사용)으로 수행해 zsh 단어 분리, glob 함정, 체인 명령 프롬프트를 회피합니다. |
+| [`skills/worktree/`](skills/worktree) | skill | git worktree 라이프사이클(create → sync → push/pr → cleanup) — push 전 테스트 게이트, `.worktreeconfig` base/target, remote 없을 때 graceful degrade. |
 
 이 키트 전반을 관통하는 두 가지 설계 원칙:
 
@@ -34,9 +35,10 @@ cd claude-code-harness-kit
 bash tests/run.sh && bash tests/guards.test.sh   # 선택적 셀프 테스트, "fail: 0" 기대
 
 ./install.sh            # 코어 훅만
-./install.sh --all      # 코어 훅 + bash-guards + repo-radar 스킬
+./install.sh --all      # 코어 훅 + bash-guards + repo-radar + worktree 스킬
 ./install.sh --guards   # 코어 + 취향 반영 bash-guards
 ./install.sh --radar    # 코어 + repo-radar 스킬
+./install.sh --worktree # 코어 + worktree 스킬
 ```
 
 그다음 훅 연결(wiring) 설정을 `~/.claude/settings.json`에 병합하세요 — 전체 예시는
@@ -190,6 +192,31 @@ python3 ~/.claude/skills/repo-radar/scripts/radar.py search code "TODO" --ext py
 전체 명령 목록은 [`skills/repo-radar/SKILL.md`](skills/repo-radar/SKILL.md)를 참고하세요. 표준
 Claude Code 스킬이라 `~/.claude/skills/` 아래에 설치하면(`./install.sh --radar`) Claude가 자동으로
 발견합니다.
+
+---
+
+## worktree (스킬)
+
+기능 작업을 격리하고 메인 체크아웃이 base 브랜치를 벗어나지 않게 git worktree 라이프사이클을
+자동화합니다: **create → work (+ sync) → push / pr → cleanup**.
+
+```
+bash ~/.claude/skills/worktree/scripts/worktree.sh create  my-feature
+bash ~/.claude/skills/worktree/scripts/worktree.sh sync    my-feature
+bash ~/.claude/skills/worktree/scripts/worktree.sh push    my-feature   # 테스트 게이트 + push (PR 없음)
+bash ~/.claude/skills/worktree/scripts/worktree.sh pr      my-feature   # + GitHub PR (gh 있을 때)
+bash ~/.claude/skills/worktree/scripts/worktree.sh cleanup my-feature   # 멱등; 브랜치 보존
+```
+
+- **base / target 브랜치**는 repo 루트의 선택적 `.worktreeconfig`(`base=`/`target=`/`test_cmd=`)에서
+  해석하고, 없으면 repo 기본 브랜치(`origin/HEAD` → `main`/`master`) → `main`. `push`/`pr`은
+  **push 전 테스트 게이트**(빌드 도구 자동탐지, 또는 `WORKTREE_TEST_CMD` / `.worktreeconfig test_cmd`)를
+  돌려 실패 시 push를 중단합니다.
+- **`push` vs `pr`**: `push`는 push까지만(리뷰 봇이나 직접 PR을 여는 경우), `pr`은 target으로 GitHub
+  PR까지 생성(gh + GitHub remote일 때). **remote가 없으면** 둘 다 로컬 머지 안내로 degrade합니다.
+- 출력은 `--tail N` / `--head N`으로 줄일 수 있습니다(파이프 불필요).
+
+[`skills/worktree/SKILL.md`](skills/worktree/SKILL.md) 참고. `./install.sh --worktree`로 설치.
 
 ---
 
