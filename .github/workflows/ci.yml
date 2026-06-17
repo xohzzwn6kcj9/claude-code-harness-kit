@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Ensure jq is installed
+        shell: bash
+        run: |
+          if command -v jq >/dev/null 2>&1; then
+            echo "jq already present: $(command -v jq)"
+          elif [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y jq
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            brew install jq
+          else
+            echo "Unsupported runner OS: $RUNNER_OS" >&2
+            exit 1
+          fi
+
+      - name: Toolchain versions (diagnostic)
+        shell: bash
+        run: |
+          echo "bash path : $(command -v bash)"
+          bash --version
+          echo "---"
+          jq --version
+          python3 --version
+          perl -e 'print "perl $^V\n"'
+          echo "RUNNER_OS=$RUNNER_OS"
+
+      - name: Warn if macOS bash is no longer 3.x
+        if: ${{ runner.os == 'macOS' && !cancelled() }}
+        shell: bash
+        run: |
+          v="$BASH_VERSION"
+          case "$v" in
+            3.*) echo "OK: stock bash $v — the 3.2 claim is under test." ;;
+            *)   echo "::warning::macOS default bash is now $v, not 3.x — the bash 3.2 claim is no longer exercised by CI." ;;
+          esac
+
+      - name: Hook approval/guard tests (tests/run.sh)
+        shell: bash
+        run: bash tests/run.sh
+
+      - name: Standalone guard tests (tests/guards.test.sh)
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: bash tests/guards.test.sh
