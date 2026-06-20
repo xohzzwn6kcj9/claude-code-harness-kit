@@ -20,6 +20,7 @@
 | [`hooks/bash-guards/`](hooks/bash-guards) | PreToolUse | **취향이 반영된** 편의용 가드(아래 참고). 각각 독립적이라 원하는 것만 설치하세요. |
 | [`skills/repo-radar/`](skills/repo-radar) | skill | 읽기 전용 git/branch/merge/PR/검색 분석을 Python(셸 미사용)으로 수행해 zsh 단어 분리, glob 함정, 체인 명령 프롬프트를 회피합니다. |
 | [`skills/worktree/`](skills/worktree) | skill | git worktree 라이프사이클(create → sync → push/pr → cleanup) — push 전 테스트 게이트, `.worktreeconfig` base/target, remote 없을 때 graceful degrade. |
+| [`skills/temp-file/`](skills/temp-file) | skill | `temp-dir-guard.sh`가 강제하는 `~/tmp` 스크래치 관례를 문서화하는 SKILL.md(스크립트 없음). 임시 파일을 `/tmp` 대신 `~/tmp`로 유도합니다. |
 
 이 키트 전반을 관통하는 두 가지 설계 원칙:
 
@@ -37,10 +38,11 @@ cd claude-code-harness-kit
 bash tests/run.sh && bash tests/guards.test.sh   # 선택적 셀프 테스트, "fail: 0" 기대
 
 ./install.sh            # 코어 훅만
-./install.sh --all      # 코어 훅 + bash-guards + repo-radar + worktree 스킬
+./install.sh --all      # 코어 훅 + bash-guards + repo-radar + worktree + temp-file 스킬
 ./install.sh --guards   # 코어 + 취향 반영 bash-guards
 ./install.sh --radar    # 코어 + repo-radar 스킬
 ./install.sh --worktree # 코어 + worktree 스킬
+./install.sh --temp-file # 코어 + temp-file 스킬
 ```
 
 그다음 훅 연결(wiring) 설정을 `~/.claude/settings.json`에 병합하세요 — 전체 예시는
@@ -172,6 +174,7 @@ Playwright MCP는 자동 명명된 스크린샷을 git-ignore된 `.playwright-mc
 | `brace-expansion-guard.sh` | 따옴표 없는 brace expansion `{a,b}` / `{1..n}` | 권한 매처가 정적으로 해석할 수 없어 어떤 allow 규칙도 자동 승인하지 못하고 무인 loop가 프롬프트에서 멈춥니다. 따옴표로 묶인 brace / heredoc 본문은 괜찮습니다. |
 | `grep-tool-guard.sh` | 따옴표 없는 `grep --include=*glob`(deny); 임시방편 `grep -r`/`find -name`(nudge) | `grep --include=*.py`는 zsh에서 중단됩니다(glob nomatch). `Grep` 도구 / repo-radar로 유도합니다. |
 | `compound-cd-guard.sh` | 복합 명령 안의 상대 `cd`(`cd src && …`) | 체인 안의 상대 `cd`는 정적으로 해석 불가(자동 승인 안 됨)이고, 절반만 실행된 `cd <rel> && git merge`는 메인 워크트리를 망가뜨릴 수 있습니다. 절대 경로/`~`/`$VAR`, 그리고 단독 `cd` 하나는 허용합니다. |
+| `bare-interpreter-guard.sh` | `command -v <name>`과 **동일한** 절대 인터프리터 경로(예: `/opt/homebrew/bin/python3`) | 절대 경로는 `Bash(<name>:*)` allow 규칙에 매칭되지 않아 프롬프트를 띄우고, 복합 명령에서는 그 세그먼트 하나가 체인 전체를 막습니다. bare 이름(동일 인터프리터)으로 재작성하도록 유도합니다. python(3)/pip(3)/uv/pipx/node/npm/npx/pnpm/yarn/go/cargo/make 커버. 의도적으로 다른 인터프리터(`/usr/bin/python3`, 버전 고정 `python3.13`, venv 경로)는 허용하고 fail-open입니다. `Bash(python3:*)` 같은 allow 규칙과 짝을 이뤄야 의미가 있습니다. |
 | `temp-dir-guard.sh` | `/tmp` / `/var/tmp` / `$TMPDIR`로의 쓰기 | `~/tmp` 스크래치 관례를 강제합니다. `/tmp`에서의 읽기는 여전히 통과합니다. 순수 opt-in — 이 관례를 안 쓰면 건너뛰세요. |
 | `approve-tmp-rm.sh` *(승인)* | — (유일한 **승인** 가드) | temp-dir-guard의 짝. `~/tmp` 아래 **파일** 삭제(`rm -f ~/tmp/...`)만 프롬프트 없이 승인합니다 — 단일 명령·`-r`/`-R` 제외·`..` traversal 차단·그 외 전부 위임(fail-open). `~/tmp` 스크래치 관례를 완성합니다. |
 
@@ -219,6 +222,40 @@ bash ~/.claude/skills/worktree/scripts/worktree.sh cleanup my-feature   # 멱등
 - 출력은 `--tail N` / `--head N`으로 줄일 수 있습니다(파이프 불필요).
 
 [`skills/worktree/SKILL.md`](skills/worktree/SKILL.md) 참고. `./install.sh --worktree`로 설치.
+
+---
+
+## temp-file (스킬)
+
+`bash-guards/temp-dir-guard.sh`가 강제하는 `~/tmp` 스크래치 관례를 **문서화하는** SKILL.md입니다
+(스크립트 없음). 가드는 `/tmp`·`/var/tmp`·`$TMPDIR`로의 쓰기를 차단하고 `~/tmp`로 유도하는데, 이
+스킬이 *왜·어디에* 써야 하는지(명명 규칙·실행·정리)를 Claude에게 알려 줍니다. 가드만 켜고 이 스킬이
+없으면 enforcement만 받고 가이드는 없는 상태가 됩니다.
+
+`./install.sh --temp-file`로 설치. `~/tmp`를 settings에서 pre-authorize하면(`Bash(~/tmp/:*)` /
+`Write(~/tmp/**)`) 프롬프트 없이 동작합니다.
+
+---
+
+## 권한 allow 베이스라인 (`settings.example.json`)
+
+훅은 *읽기 전용* 동작만 자동 승인합니다 — `git commit` / `npm install` / `./gradlew build`처럼
+부작용이 있는 명령은 의도적으로 위임(프롬프트)합니다. 그 프롬프트까지 줄이고 싶다면
+`settings.example.json`의 **선택적 `//allow-generic`** 블록에서 원하는 규칙만 골라 병합하세요:
+
+- `Bash(git:*)` / `Bash(gh:*)` — 다만 이들은 coarse PREFIX 규칙이라 write 서브커맨드(`git commit`,
+  `gh pr create`)까지 포함합니다. **의식적 opt-in**입니다.
+- 읽기 전용 계열(`ls`/`cat`/`grep`/`rg`/`jq`/`diff`/…)과 빌드/언어 툴(`python3`/`node`/`npm`/`go`/
+  `cargo`/`./gradlew`/…).
+
+`permissions.deny`는 **항상 allow를 이깁니다**(아래 "훅 자동 승인의 동작 원리" 참고). 다만 deny는
+잘 알려진 footgun 몇 개(`git push --force`, `npm publish`, `curl|sh`)만 막는 **부분** 백스톱이지
+완전한 방어선이 아닙니다 — 넓은 `Bash(git:*)`는 파괴적 서브커맨드(`reset --hard`, `clean -fdx`),
+브랜치 switch(이 키트의 `git-branch-switch-guard`가 막으려는 바로 그 행위), `git -c core.pager=<cmd>`
+같은 config 기반 임의 실행까지 자동승인하고, `npm`/`npx`는 패키지 postinstall 스크립트를 실행합니다.
+그 표면이 신경 쓰이면 git/npm은 빼고 읽기 전용 서브커맨드만 허용하세요. 빌드/언어 툴 allow는
+`hooks/bash-guards/bare-interpreter-guard.sh`의 커버 목록과 **같은 bare 이름**을 담고 있어, 가드가
+절대 인터프리터 경로를 bare로 재작성하면 항상 승인된 명령에 안착합니다.
 
 ---
 
