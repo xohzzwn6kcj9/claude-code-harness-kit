@@ -172,6 +172,7 @@ Playwright MCP는 자동 명명된 스크린샷을 git-ignore된 `.playwright-mc
 | `brace-expansion-guard.sh` | 따옴표 없는 brace expansion `{a,b}` / `{1..n}` | 권한 매처가 정적으로 해석할 수 없어 어떤 allow 규칙도 자동 승인하지 못하고 무인 loop가 프롬프트에서 멈춥니다. 따옴표로 묶인 brace / heredoc 본문은 괜찮습니다. |
 | `grep-tool-guard.sh` | 따옴표 없는 `grep --include=*glob`(deny); 임시방편 `grep -r`/`find -name`(nudge) | `grep --include=*.py`는 zsh에서 중단됩니다(glob nomatch). `Grep` 도구 / repo-radar로 유도합니다. |
 | `compound-cd-guard.sh` | 복합 명령 안의 상대 `cd`(`cd src && …`) | 체인 안의 상대 `cd`는 정적으로 해석 불가(자동 승인 안 됨)이고, 절반만 실행된 `cd <rel> && git merge`는 메인 워크트리를 망가뜨릴 수 있습니다. 절대 경로/`~`/`$VAR`, 그리고 단독 `cd` 하나는 허용합니다. |
+| `bare-interpreter-guard.sh` | `command -v <name>`과 **동일한** 절대 인터프리터 경로(예: `/opt/homebrew/bin/python3`) | 절대 경로는 `Bash(<name>:*)` allow 규칙에 매칭되지 않아 프롬프트를 띄우고, 복합 명령에서는 그 세그먼트 하나가 체인 전체를 막습니다. bare 이름(동일 인터프리터)으로 재작성하도록 유도합니다. python(3)/pip(3)/uv/pipx/node/npm/npx/pnpm/yarn/go/cargo/make 커버. 의도적으로 다른 인터프리터(`/usr/bin/python3`, 버전 고정 `python3.13`, venv 경로)는 허용하고 fail-open입니다. `Bash(python3:*)` 같은 allow 규칙과 짝을 이뤄야 의미가 있습니다. |
 | `temp-dir-guard.sh` | `/tmp` / `/var/tmp` / `$TMPDIR`로의 쓰기 | `~/tmp` 스크래치 관례를 강제합니다. `/tmp`에서의 읽기는 여전히 통과합니다. 순수 opt-in — 이 관례를 안 쓰면 건너뛰세요. |
 | `approve-tmp-rm.sh` *(승인)* | — (유일한 **승인** 가드) | temp-dir-guard의 짝. `~/tmp` 아래 **파일** 삭제(`rm -f ~/tmp/...`)만 프롬프트 없이 승인합니다 — 단일 명령·`-r`/`-R` 제외·`..` traversal 차단·그 외 전부 위임(fail-open). `~/tmp` 스크래치 관례를 완성합니다. |
 

@@ -14,6 +14,9 @@ Replace or extend to taste.
 - Avoid `xargs` and process substitution `<(...)` in one-liners — use a `for` loop / temp file.
 - Don't use brace expansion `{a,b}` in tool commands — list paths explicitly.
 - Use absolute paths for `cd` inside compound commands.
+- Prefer a bare `python3` / `node` over an absolute interpreter path (`/opt/homebrew/bin/python3`) —
+  the `bare-interpreter-guard` hook blocks a path identical to `command -v <name>` (it forces a
+  permission prompt no `Bash(<name>:*)` rule can satisfy).
   (These mirror the `bash-guards/` hooks, which block the above with a corrective hint.)
 
 ## Secrets

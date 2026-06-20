@@ -36,6 +36,7 @@
           { "type": "command", "command": "~/.claude/hooks/bash-guards/brace-expansion-guard.sh" },
           { "type": "command", "command": "~/.claude/hooks/bash-guards/grep-tool-guard.sh" },
           { "type": "command", "command": "~/.claude/hooks/bash-guards/compound-cd-guard.sh" },
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/bare-interpreter-guard.sh" },
           { "type": "command", "command": "~/.claude/hooks/bash-guards/temp-dir-guard.sh" },
           { "type": "command", "command": "~/.claude/hooks/bash-guards/approve-tmp-rm.sh" }
         ]

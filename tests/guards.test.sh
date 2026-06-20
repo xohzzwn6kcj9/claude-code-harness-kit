@@ -74,6 +74,31 @@ den "$H/playwright-screenshot-guard.sh" "$(shotp 'shot.png')"             'relat
 pas "$H/playwright-screenshot-guard.sh" "$(shotp '.playwright-mcp/a.png')" 'screenshot in ignored dir'
 pas "$H/playwright-screenshot-guard.sh" "$(shotp '/tmp/abs.png')"          'absolute screenshot'
 
+# bare-interpreter-guard: block an absolute interpreter path identical to `command -v <name>`.
+# Every block-case is built from $(command -v python3) so it equals PATH resolution by
+# construction; pass-cases use paths that provably differ. Skips if python3 is absent.
+BI="$G/bare-interpreter-guard.sh"
+P="$(command -v python3 2>/dev/null)"
+if [ -n "$P" ]; then
+  blk "$BI" "$(bashp "$P -m venv $HOME/tmp/x")"                        'abs python3 at start'
+  blk "$BI" "$(bashp "echo hi ; $P -m pytest -q")"                     'abs python3 after ;'
+  blk "$BI" "$(bashp "true && $P -V")"                                 'abs python3 after &&'
+  blk "$BI" "$(bashp "$P -m venv $HOME/tmp/x 2>&1 | tail -2")"         'abs python3 then pipe-tail'
+  blk "$BI" "$(bashp "python3 -m venv x && $P -m pip install pytest")" 'compound 2nd seg abs'
+  pas "$BI" "$(bashp 'python3 -m pytest -q')"                          'bare python3 (no abs token)'
+  pas "$BI" "$(bashp "${P}.13 -c 'import sys'")"                       'version-pinned python3.13'
+  pas "$BI" "$(bashp "$HOME/tmp/venv/bin/python -m pytest")"           'venv path != command -v'
+  pas "$BI" "$(bashp "ls -l $P")"                                      'abs path as argument'
+  pas "$BI" "$(bashp "git commit -m \"ran $P\"")"                      'abs path inside quotes'
+  pas "$BI" "$(bashp '/usr/bin/env python3 -V')"                       'env wrapper (basename not in set)'
+  if [ "$P" != "/usr/bin/python3" ] && [ -e /usr/bin/python3 ]; then
+    pas "$BI" "$(bashp "/usr/bin/python3 -c 'import sys'")"            'system python3 distinct interpreter'
+  fi
+  o=$(printf '' | bash "$BI" 2>/dev/null); [ $? -eq 0 ] && note || err 'bare-interpreter empty input fail-open'
+else
+  echo "skip: bare-interpreter-guard (python3 not on PATH)"
+fi
+
 echo "guards — pass: $PASS  fail: $FAIL"
 if [ "$FAIL" -gt 0 ]; then echo "failures:$MSGS"; exit 1; fi
 exit 0
