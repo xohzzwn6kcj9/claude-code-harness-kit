@@ -223,6 +223,25 @@ bash ~/.claude/skills/worktree/scripts/worktree.sh cleanup my-feature   # 멱등
 
 ---
 
+## 권한 allow 베이스라인 (`settings.example.json`)
+
+훅은 *읽기 전용* 동작만 자동 승인합니다 — `git commit` / `npm install` / `./gradlew build`처럼
+부작용이 있는 명령은 의도적으로 위임(프롬프트)합니다. 그 프롬프트까지 줄이고 싶다면
+`settings.example.json`의 **선택적 `//allow-generic`** 블록에서 원하는 규칙만 골라 병합하세요:
+
+- `Bash(git:*)` / `Bash(gh:*)` — 다만 이들은 coarse PREFIX 규칙이라 write 서브커맨드(`git commit`,
+  `gh pr create`)까지 포함합니다. **의식적 opt-in**입니다.
+- 읽기 전용 계열(`ls`/`cat`/`grep`/`rg`/`jq`/`diff`/…)과 빌드/언어 툴(`python3`/`node`/`npm`/`go`/
+  `cargo`/`./gradlew`/…).
+
+안전성의 근거는 **deny가 항상 이긴다**는 불변식입니다(아래 "훅 자동 승인의 동작 원리" 참고).
+`permissions.deny` 기준선(`git push --force`, `npm publish`, `curl|sh` …)은 어떤 allow보다 우선하므로
+넓은 `Bash(git:*)`를 켜도 위험 서브커맨드는 여전히 차단됩니다. 빌드/언어 툴 allow는
+`hooks/bash-guards/bare-interpreter-guard.sh`와 **짝지어** 쓰세요 — 절대 인터프리터 경로가
+`Bash(<name>:*)` 규칙을 우회해 프롬프트를 띄우는 것을 막아 줍니다.
+
+---
+
 ## 훅 자동 승인의 동작 원리 (사실 관계)
 
 - **출력 형식**: PreToolUse 훅은
