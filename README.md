@@ -20,6 +20,7 @@
 | [`hooks/bash-guards/`](hooks/bash-guards) | PreToolUse | **취향이 반영된** 편의용 가드(아래 참고). 각각 독립적이라 원하는 것만 설치하세요. |
 | [`skills/repo-radar/`](skills/repo-radar) | skill | 읽기 전용 git/branch/merge/PR/검색 분석을 Python(셸 미사용)으로 수행해 zsh 단어 분리, glob 함정, 체인 명령 프롬프트를 회피합니다. |
 | [`skills/worktree/`](skills/worktree) | skill | git worktree 라이프사이클(create → sync → push/pr → cleanup) — push 전 테스트 게이트, `.worktreeconfig` base/target, remote 없을 때 graceful degrade. |
+| [`skills/temp-file/`](skills/temp-file) | skill | `temp-dir-guard.sh`가 강제하는 `~/tmp` 스크래치 관례를 문서화하는 SKILL.md(스크립트 없음). 임시 파일을 `/tmp` 대신 `~/tmp`로 유도합니다. |
 
 이 키트 전반을 관통하는 두 가지 설계 원칙:
 
@@ -37,10 +38,11 @@ cd claude-code-harness-kit
 bash tests/run.sh && bash tests/guards.test.sh   # 선택적 셀프 테스트, "fail: 0" 기대
 
 ./install.sh            # 코어 훅만
-./install.sh --all      # 코어 훅 + bash-guards + repo-radar + worktree 스킬
+./install.sh --all      # 코어 훅 + bash-guards + repo-radar + worktree + temp-file 스킬
 ./install.sh --guards   # 코어 + 취향 반영 bash-guards
 ./install.sh --radar    # 코어 + repo-radar 스킬
 ./install.sh --worktree # 코어 + worktree 스킬
+./install.sh --temp-file # 코어 + temp-file 스킬
 ```
 
 그다음 훅 연결(wiring) 설정을 `~/.claude/settings.json`에 병합하세요 — 전체 예시는
@@ -220,6 +222,18 @@ bash ~/.claude/skills/worktree/scripts/worktree.sh cleanup my-feature   # 멱등
 - 출력은 `--tail N` / `--head N`으로 줄일 수 있습니다(파이프 불필요).
 
 [`skills/worktree/SKILL.md`](skills/worktree/SKILL.md) 참고. `./install.sh --worktree`로 설치.
+
+---
+
+## temp-file (스킬)
+
+`bash-guards/temp-dir-guard.sh`가 강제하는 `~/tmp` 스크래치 관례를 **문서화하는** SKILL.md입니다
+(스크립트 없음). 가드는 `/tmp`·`/var/tmp`·`$TMPDIR`로의 쓰기를 차단하고 `~/tmp`로 유도하는데, 이
+스킬이 *왜·어디에* 써야 하는지(명명 규칙·실행·정리)를 Claude에게 알려 줍니다. 가드만 켜고 이 스킬이
+없으면 enforcement만 받고 가이드는 없는 상태가 됩니다.
+
+`./install.sh --temp-file`로 설치. `~/tmp`를 settings에서 pre-authorize하면(`Bash(~/tmp/:*)` /
+`Write(~/tmp/**)`) 프롬프트 없이 동작합니다.
 
 ---
 
