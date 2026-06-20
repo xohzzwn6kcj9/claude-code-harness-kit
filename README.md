@@ -248,11 +248,14 @@ bash ~/.claude/skills/worktree/scripts/worktree.sh cleanup my-feature   # 멱등
 - 읽기 전용 계열(`ls`/`cat`/`grep`/`rg`/`jq`/`diff`/…)과 빌드/언어 툴(`python3`/`node`/`npm`/`go`/
   `cargo`/`./gradlew`/…).
 
-안전성의 근거는 **deny가 항상 이긴다**는 불변식입니다(아래 "훅 자동 승인의 동작 원리" 참고).
-`permissions.deny` 기준선(`git push --force`, `npm publish`, `curl|sh` …)은 어떤 allow보다 우선하므로
-넓은 `Bash(git:*)`를 켜도 위험 서브커맨드는 여전히 차단됩니다. 빌드/언어 툴 allow는
-`hooks/bash-guards/bare-interpreter-guard.sh`와 **짝지어** 쓰세요 — 절대 인터프리터 경로가
-`Bash(<name>:*)` 규칙을 우회해 프롬프트를 띄우는 것을 막아 줍니다.
+`permissions.deny`는 **항상 allow를 이깁니다**(아래 "훅 자동 승인의 동작 원리" 참고). 다만 deny는
+잘 알려진 footgun 몇 개(`git push --force`, `npm publish`, `curl|sh`)만 막는 **부분** 백스톱이지
+완전한 방어선이 아닙니다 — 넓은 `Bash(git:*)`는 파괴적 서브커맨드(`reset --hard`, `clean -fdx`),
+브랜치 switch(이 키트의 `git-branch-switch-guard`가 막으려는 바로 그 행위), `git -c core.pager=<cmd>`
+같은 config 기반 임의 실행까지 자동승인하고, `npm`/`npx`는 패키지 postinstall 스크립트를 실행합니다.
+그 표면이 신경 쓰이면 git/npm은 빼고 읽기 전용 서브커맨드만 허용하세요. 빌드/언어 툴 allow는
+`hooks/bash-guards/bare-interpreter-guard.sh`의 커버 목록과 **같은 bare 이름**을 담고 있어, 가드가
+절대 인터프리터 경로를 bare로 재작성하면 항상 승인된 명령에 안착합니다.
 
 ---
 

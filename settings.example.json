@@ -2,7 +2,7 @@
   "//": "Example wiring for ~/.claude/settings.json. Merge the blocks you want. Hook order within a matcher does not affect safety — an exit-2 block from ANY hook always wins, and a hook 'allow' never overrides a settings deny rule. The bash-guards are OPINIONATED (worktree workflow + personal bash style); include only the ones you want.",
   "permissions": {
     "//allow": "Self-test allowlist so `bash tests/run.sh` / `tests/guards.test.sh` run prompt-free when developing this kit. `bash` is intentionally NOT wildcarded (that would defeat the permission system) — only these two scripts are allowed.",
-    "//allow-generic": "OPTIONAL prompt-reducing baseline — keep only the rules you actually want. These are COARSE PREFIX matches: Bash(git:*) / Bash(gh:*) also cover WRITE subcommands (git commit, gh pr create), so enabling them is a conscious opt-in. The permissions.deny block below ALWAYS wins (git push --force, npm publish, curl|sh stay blocked) — that is the real backstop. The build/lang allows (python3, node, go, ...) pair with hooks/bash-guards/bare-interpreter-guard.sh, which stops an absolute interpreter path from slipping past a Bash(<name>:*) rule. auto-approve-readonly.sh already covers pure read-only commands; these add the WRITE-capable tools it deliberately defers.",
+    "//allow-generic": "OPTIONAL prompt-reducing baseline — keep only the rules you actually want; each is a CONSCIOUS opt-in. These are COARSE PREFIX matches, so they auto-approve MORE than their happy-path name suggests, and the permissions.deny block below only gates a few well-known footguns (git push --force, npm publish, curl|sh) — it is NOT a complete backstop. Specifically: Bash(git:*) also auto-approves destructive git (reset --hard, clean -fdx), a branch switch (git checkout <branch>, which this kit's own git-branch-switch-guard otherwise blocks), and git-config-based arbitrary execution (git -c core.pager=<cmd> / core.sshCommand=<cmd>); Bash(npm:*)/Bash(npx:*) run arbitrary package lifecycle scripts (preinstall/postinstall) = arbitrary code. If that surface matters to you, drop git/npm here and allow only read-only subcommands. The build/lang allows cover the SAME bare names as hooks/bash-guards/bare-interpreter-guard.sh, so the guard's rewrite of an absolute interpreter path always lands on an approved command. auto-approve-readonly.sh already covers pure read-only commands; these add the WRITE-capable tools it deliberately defers.",
     "allow": [
       "Bash(bash tests/run.sh:*)",
       "Bash(bash tests/guards.test.sh:*)",
@@ -39,7 +39,10 @@
       "Bash(printf:*)",
 
       "Bash(python3:*)",
+      "Bash(python:*)",
       "Bash(pip3:*)",
+      "Bash(pip:*)",
+      "Bash(pipx:*)",
       "Bash(uv:*)",
       "Bash(node:*)",
       "Bash(npm:*)",
