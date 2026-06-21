@@ -1,11 +1,10 @@
 {
   "//": "Example wiring for ~/.claude/settings.json. Merge the blocks you want. Hook order within a matcher does not affect safety — an exit-2 block from ANY hook always wins, and a hook 'allow' never overrides a settings deny rule. The bash-guards are OPINIONATED (worktree workflow + personal bash style); include only the ones you want.",
   "permissions": {
-    "//allow": "Self-test allowlist so `bash tests/run.sh` / `tests/guards.test.sh` run prompt-free when developing this kit. `bash` is intentionally NOT wildcarded (that would defeat the permission system) — only these two scripts are allowed.",
+    "//allow-test": "Test-runner conveniences. `Bash(pytest:*)` auto-approves pytest (interpreter-trust, like python3 below — it runs your test code by design). Shell suites named `*.test.sh` are auto-run by the approve-test-run.sh hook below (a STRICT `bash <script>.test.sh` parse — never `bash -c …` / env-prefix / extra write segment), which is paired with enforce-test-location.sh keeping those files under a tests/ dir inside ~/.claude. NO `Bash(bash …)` allow rule is used: a `bash *.test.sh` glob would let `bash -c '<payload>' x.test.sh` smuggle arbitrary code through a single segment.",
     "//allow-generic": "OPTIONAL prompt-reducing baseline — keep only the rules you actually want; each is a CONSCIOUS opt-in. These are COARSE PREFIX matches, so they auto-approve MORE than their happy-path name suggests, and the permissions.deny block below only gates a few well-known footguns (git push --force, npm publish, curl|sh) — it is NOT a complete backstop. Specifically: Bash(git:*) also auto-approves destructive git (reset --hard, clean -fdx), a branch switch (git checkout <branch>, which this kit's own git-branch-switch-guard otherwise blocks), and git-config-based arbitrary execution (git -c core.pager=<cmd> / core.sshCommand=<cmd>); Bash(npm:*)/Bash(npx:*) run arbitrary package lifecycle scripts (preinstall/postinstall) = arbitrary code. If that surface matters to you, drop git/npm here and allow only read-only subcommands. The build/lang allows cover the SAME bare names as hooks/bash-guards/bare-interpreter-guard.sh, so the guard's rewrite of an absolute interpreter path always lands on an approved command. auto-approve-readonly.sh already covers pure read-only commands; these add the WRITE-capable tools it deliberately defers.",
     "allow": [
-      "Bash(bash tests/run.sh:*)",
-      "Bash(bash tests/guards.test.sh:*)",
+      "Bash(pytest:*)",
 
       "Bash(git:*)",
       "Bash(gh:*)",
@@ -86,13 +85,21 @@
           { "type": "command", "command": "~/.claude/hooks/bash-guards/compound-cd-guard.sh" },
           { "type": "command", "command": "~/.claude/hooks/bash-guards/bare-interpreter-guard.sh" },
           { "type": "command", "command": "~/.claude/hooks/bash-guards/temp-dir-guard.sh" },
-          { "type": "command", "command": "~/.claude/hooks/bash-guards/approve-tmp-rm.sh" }
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/approve-tmp-rm.sh" },
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/approve-test-run.sh" }
         ]
       },
       {
         "matcher": "Write",
         "hooks": [
           { "type": "command", "command": "~/.claude/hooks/bash-guards/temp-dir-guard.sh" }
+        ]
+      },
+      {
+        "//": "enforce-test-location pairs with approve-test-run above: since that hook auto-runs any *.test.sh, this keeps *.test.sh files under a tests/ dir inside ~/.claude (fail-open; ~/tmp and other projects exempt). Gates Write AND Edit.",
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/enforce-test-location.sh" }
         ]
       },
       {
