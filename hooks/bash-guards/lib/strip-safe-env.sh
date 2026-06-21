@@ -33,8 +33,10 @@ strip_safe_env_prefix() {
     local name="${BASH_REMATCH[1]}"
     local val="${BASH_REMATCH[2]}"
     local consumed="${BASH_REMATCH[0]}"
-    # never strip a value carrying command substitution / backtick (leave for the normal flow)
-    [[ "$val" == *'$('* || "$val" == *'`'* ]] && break
+    # never strip a value carrying a shell metacharacter — the space-delimited capture above would
+    # otherwise absorb `WORKTREE_TEST_CMD=x>~/.bashrc` / `=x|sh` / `=x;rm` into the value, hiding an
+    # operator the REAL shell (running the ORIGINAL command) still parses. Leave it -> caller defers.
+    case "$val" in *'$('*|*'`'*|*'|'*|*';'*|*'&'*|*'<'*|*'>'*|*'('*|*')'*) break ;; esac
     # only strip an allowlisted NAME (anchored, exact) — otherwise STOP (leave the danger in place)
     [[ "$name" =~ $SAFE_ENV_NAME_RE ]] || break
     cmd="${cmd:${#consumed}}"
