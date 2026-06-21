@@ -181,6 +181,7 @@ Playwright MCP는 자동 명명된 스크린샷을 git-ignore된 `.playwright-mc
 | `approve-tmp-rm.sh` *(승인)* | — (**승인** 가드) | temp-dir-guard의 짝. `~/tmp` 아래 **파일** 삭제(`rm -f ~/tmp/...`)만 프롬프트 없이 승인합니다 — 단일 명령·`-r`/`-R` 제외·`..` traversal 차단·그 외 전부 위임(fail-open). `~/tmp` 스크래치 관례를 완성합니다. |
 | `approve-test-run.sh` *(승인)* | — (**승인** 가드) | 안전한 형태의 셸 테스트 실행(`bash <script>.test.sh` + 선택적 read-only 파이프)만 프롬프트 없이 승인합니다 — 스크립트 앞 옵션(`bash -c`/`-s`)·leading env(`BASH_ENV=…`)·write 세그먼트·redirect·command-sub는 전부 위임. broad `Bash(bash *.test.sh:*)` allow 룰을 대체합니다(그 glob은 `bash -c '<payload>' x.test.sh` 한 세그먼트로 임의 코드를 밀반입). `enforce-test-location.sh`와 짝이며, pytest는 `Bash(pytest:*)` allow 룰로 따로 승인합니다. |
 | `enforce-test-location.sh` *(Write\|Edit)* | `~/.claude` 안에서 tests/ 밖에 생성되는 `*.test.sh` | `approve-test-run.sh`가 `*.test.sh`를 프롬프트 없이 auto-run하므로(파일명-신뢰), 그 신뢰가 안전하도록 `*.test.sh`를 tests/ 하위로 강제하는 **생성측 짝**입니다. exit 2 + 교정 메시지로 모델이 스스로 옮겨 재시도. fail-open·`~/tmp` 면제·타 프로젝트 미적용. Python `test_*.py`는 인터프리터-신뢰라 대상 아님. |
+| `approve-worktree-skill.sh` *(승인)* | — (**승인** 가드, worktree 스킬과 짝) | clean한 `bash …/skills/worktree/scripts/worktree.sh <create\|sync\|push\|pr\|cleanup>`만 프롬프트 없이 승인합니다. kit은 `Bash(bash …)` allow 규칙을 ship하지 않으므로(그 glob은 `bash -c '<payload>'` 밀반입 허용) worktree 호출이 원래 프롬프트를 띄우고, 특히 `WORKTREE_SKIP_TESTS=1 bash …worktree.sh pr foo` 같은 env-prefix 형태는 Claude Code 매처가 정적 allow로도 승인 못 해 무인 `/loop`을 멈춥니다. **2계층 방어**: ① strip 이전에 ORIGINAL 명령의 셸 메타문자(`\| ; & > < \` $( ( ) * ? { }`)·newline에서 defer — strip이 공백-구분이라 값에 흡수된 메타문자(`WORKTREE_TEST_CMD=x>~/.bashrc`)나 후행 `; rm`이 실제 셸엔 연산자로 파싱되는 dual-parser 우회를 차단. ② `lib/strip-safe-env.sh`가 **`WORKTREE_SKIP_TESTS`만**(순수 `=1` 비교, 실행 sink 아님) strip 허용. `WORKTREE_TEST_CMD`는 worktree.sh가 `eval`하는 sink라 **일부러 제외** → 항상 프롬프트. 위험 prefix(`BASH_ENV=…`/`DYLD_*`/`GIT_SSH_COMMAND`)는 strip 안 돼 매치 실패 → defer, 절대 잘못 승인 안 함. `./install.sh --worktree --guards`로 설치하고 이 스킬을 쓸 때만 켜세요. |
 
 ---
 
@@ -253,7 +254,8 @@ bash ~/.claude/skills/worktree/scripts/worktree.sh cleanup my-feature   # 멱등
   `cargo`/`./gradlew`/…).
 
 `permissions.deny`는 **항상 allow를 이깁니다**(아래 "훅 자동 승인의 동작 원리" 참고). 다만 deny는
-잘 알려진 footgun 몇 개(`git push --force`, `npm publish`, `curl|sh`)만 막는 **부분** 백스톱이지
+잘 알려진 footgun 몇 개(`git push --force`, 패키지 publish(`npm`/`pnpm`/`yarn` + `twine upload`),
+`curl|sh`)만 막는 **부분** 백스톱이지
 완전한 방어선이 아닙니다 — 넓은 `Bash(git:*)`는 파괴적 서브커맨드(`reset --hard`, `clean -fdx`),
 브랜치 switch(이 키트의 `git-branch-switch-guard`가 막으려는 바로 그 행위), `git -c core.pager=<cmd>`
 같은 config 기반 임의 실행까지 자동승인하고, `npm`/`npx`는 패키지 postinstall 스크립트를 실행합니다.

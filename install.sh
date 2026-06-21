@@ -55,6 +55,9 @@ if [ "$WANT_GUARDS" = 1 ]; then
   for g in "$SRC"/hooks/bash-guards/*.sh; do
     copy "$g" "$DEST/hooks/bash-guards/$(basename "$g")"
   done
+  # lib/ lives in a subdir the *.sh glob above does not reach; copy it explicitly.
+  # (Sourced by approve-worktree-skill.sh; its env-prefix allowlist is the safety mechanism.)
+  copy "$SRC/hooks/bash-guards/lib/strip-safe-env.sh" "$DEST/hooks/bash-guards/lib/strip-safe-env.sh"
 fi
 
 # --- repo-radar skill (opt-in) ---
