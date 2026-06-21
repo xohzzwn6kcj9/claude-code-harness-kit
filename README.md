@@ -254,7 +254,8 @@ bash ~/.claude/skills/worktree/scripts/worktree.sh cleanup my-feature   # 멱등
   `cargo`/`./gradlew`/…).
 
 `permissions.deny`는 **항상 allow를 이깁니다**(아래 "훅 자동 승인의 동작 원리" 참고). 다만 deny는
-잘 알려진 footgun 몇 개(`git push --force`, `npm publish`, `curl|sh`)만 막는 **부분** 백스톱이지
+잘 알려진 footgun 몇 개(`git push --force`, 패키지 publish(`npm`/`pnpm`/`yarn` + `twine upload`),
+`curl|sh`)만 막는 **부분** 백스톱이지
 완전한 방어선이 아닙니다 — 넓은 `Bash(git:*)`는 파괴적 서브커맨드(`reset --hard`, `clean -fdx`),
 브랜치 switch(이 키트의 `git-branch-switch-guard`가 막으려는 바로 그 행위), `git -c core.pager=<cmd>`
 같은 config 기반 임의 실행까지 자동승인하고, `npm`/`npx`는 패키지 postinstall 스크립트를 실행합니다.
