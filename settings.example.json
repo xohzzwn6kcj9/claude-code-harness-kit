@@ -90,6 +90,13 @@
         ]
       },
       {
+        "//": "approve-worktree-skill auto-approves a clean worktree.sh subcommand. The kit ships NO Bash(bash …) allow rule (a glob would let `bash -c '<payload>'` smuggle code), so worktree.sh calls would otherwise prompt — incl. the WORKTREE_SKIP_TESTS=1 env-prefixed form Claude Code's matcher can't auto-approve. Opt-in WITH the worktree skill (./install.sh --worktree --guards); drop this block if you don't use it. Needs hooks/bash-guards/lib/strip-safe-env.sh — its env-prefix allowlist is the safety mechanism (a dangerous prefix like BASH_ENV= is left intact -> defers, never auto-approved).",
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/bash-guards/approve-worktree-skill.sh" }
+        ]
+      },
+      {
         "matcher": "Write",
         "hooks": [
           { "type": "command", "command": "~/.claude/hooks/bash-guards/temp-dir-guard.sh" }
