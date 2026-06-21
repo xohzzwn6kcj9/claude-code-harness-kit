@@ -18,8 +18,11 @@
 # a false approve silently deletes). Scope guards:
 #   - single simple command (no pipe / ; / & / newline / $() / backtick)
 #   - command word is `rm` (bare or absolute path, e.g. /bin/rm)
-#   - NO recursive flag (any flag containing r/R) — directory removal stays manual
-#   - every non-flag arg resolves strictly under ~/tmp ; no `..` traversal
+#   - NO recursive flag (any flag containing r/R) — a `set -f` string hook can't resolve
+#     symlinks, so a `~/tmp/<symlink>/…` pointing outside could escape; recursive stays manual
+#   - NO leading env prefix (VAR=…) — the exec shell's effective HOME could diverge from ours
+#   - every non-flag arg is a STRICT subpath under ~/tmp (≥1 segment, so bare `~/tmp` and
+#     `~/tmp/` defer) ; no `..` traversal
 #
 # Requirements: bash 3.2+, jq. If jq is missing the hook fails open (defers).
 # If your scratch dir differs from ~/tmp, edit TMP_DIR below.
@@ -48,6 +51,9 @@ esac
 CMD="${COMMAND#"${COMMAND%%[![:space:]]*}"}"
 FIRST="${CMD%%[[:space:]]*}"
 REST="${CMD#"$FIRST"}"
+# reject a leading env assignment (HOME=… rm …): we expand ~ against the hook's $HOME, but the
+# exec shell would use the command's effective HOME -> divergence. Defer to the normal prompt.
+case "$FIRST" in [A-Za-z_]*=*) exit 0 ;; esac
 [ "${FIRST##*/}" = "rm" ] || exit 0   # bare rm or /bin/rm etc.
 
 SAW_TARGET=0
@@ -67,7 +73,7 @@ for tok in $REST; do
   esac
   case "$tok" in *..*) exit 0 ;; esac          # no traversal
   case "$tok" in
-    "$TMP_DIR"/*) SAW_TARGET=1 ;;              # strictly under ~/tmp
+    "$TMP_DIR"/?*) SAW_TARGET=1 ;;             # strict subpath (>=1 char; bare ~/tmp & ~/tmp/ defer)
     *) exit 0 ;;
   esac
 done
