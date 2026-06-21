@@ -13,17 +13,16 @@
 # that grants code exec (large, OS/tool-version-dependent, grows over time); ONE missed entry =
 # silent RCE. An allowlist inverts the failure mode: a name not on it is simply NOT stripped, so it
 # stays the command's first word, matches no approve shape, and the caller DEFERS to the human
-# prompt — fail-safe. The only env vars ever legitimately passed inline to an auto-approved
-# skill-script are the worktree skill's WORKTREE_SKIP_TESTS / WORKTREE_TEST_CMD.
+# prompt — fail-safe. The ONLY env var allowlisted here is the worktree skill's WORKTREE_SKIP_TESTS
+# (a pure `=1` comparison in worktree.sh — never executed). WORKTREE_TEST_CMD is deliberately NOT
+# allowlisted: worktree.sh `eval`s it, so it is an execution sink that must stay behind a human
+# prompt — auto-stripping even a single-token value (`reboot`, a pre-planted script path) would hand
+# that string straight to eval with no prompt.
 #
 # strip_safe_env_prefix <command> -> prints the command with leading ALLOWLISTED env assignments
 # removed, STOPPING at the first non-allowlisted (or command-substitution-bearing) assignment so a
 # dangerous prefix is left intact (the caller then fails to match -> defers). Pure: no globals
 # mutated. Uses [[ =~ ]] + BASH_REMATCH for the NAME=val capture (valid in bash 3.0+/3.2).
-
-# Anchored, exact var-NAME allowlist. Match the CAPTURED NAME against this — never the raw NAME=val
-# substring (an unanchored match would admit WORKTREE_SKIP_TESTS_EVIL / XWORKTREE_TEST_CMD).
-SAFE_ENV_NAME_RE='^(WORKTREE_SKIP_TESTS|WORKTREE_TEST_CMD)$'
 
 strip_safe_env_prefix() {
   local cmd="$1"
@@ -37,8 +36,9 @@ strip_safe_env_prefix() {
     # otherwise absorb `WORKTREE_TEST_CMD=x>~/.bashrc` / `=x|sh` / `=x;rm` into the value, hiding an
     # operator the REAL shell (running the ORIGINAL command) still parses. Leave it -> caller defers.
     case "$val" in *'$('*|*'`'*|*'|'*|*';'*|*'&'*|*'<'*|*'>'*|*'('*|*')'*) break ;; esac
-    # only strip an allowlisted NAME (anchored, exact) — otherwise STOP (leave the danger in place)
-    [[ "$name" =~ $SAFE_ENV_NAME_RE ]] || break
+    # only strip the allowlisted NAME (exact match) — otherwise STOP (leave the prefix in place).
+    # WORKTREE_TEST_CMD is intentionally absent: worktree.sh eval()s it (see header).
+    case "$name" in WORKTREE_SKIP_TESTS) ;; *) break ;; esac
     cmd="${cmd:${#consumed}}"
     cmd="${cmd#"${cmd%%[![:space:]]*}"}"
   done

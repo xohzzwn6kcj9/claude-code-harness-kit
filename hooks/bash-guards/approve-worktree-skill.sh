@@ -8,10 +8,10 @@
 # NOT strip a leading env-var assignment, so even a static allow rule could not cover the worktree
 # skill's documented env-prefixed fast-path
 #   WORKTREE_SKIP_TESTS=1 bash ~/.claude/skills/worktree/scripts/worktree.sh pr foo
-# This hook closes both gaps: it defers on ANY shell metacharacter, strips ONLY an allowlisted env
-# prefix (via lib/strip-safe-env.sh), then auto-approves ONLY an exact-shape worktree.sh subcommand.
-# Limitation (fail-safe): a QUOTED multi-word value, e.g. WORKTREE_TEST_CMD='a b', is not fully
-# stripped by the shared helper, so that form simply DEFERS to a prompt — never wrongly approved.
+# This hook closes both gaps: it defers on ANY shell metacharacter, strips ONLY the allowlisted
+# WORKTREE_SKIP_TESTS prefix (via lib/strip-safe-env.sh), then auto-approves ONLY an exact-shape
+# worktree.sh subcommand. WORKTREE_TEST_CMD is NOT auto-approved — worktree.sh eval()s it, so it
+# stays behind a human prompt (a deliberate fail-safe; see lib/strip-safe-env.sh).
 #
 # Safety: this hook ONLY ever emits an "allow" decision or exits 0 (defer to the normal permission
 # flow). It NEVER denies, and an allow does not override deny rules (deny-first precedence is kept by
@@ -47,11 +47,9 @@ COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/nul
 # `; rm -rf ~`, must be caught here against the string the shell actually parses.
 case "$COMMAND" in
   *'|'* | *'&'* | *';'* | *'>'* | *'<'* | *'`'* | *'$('* | *'('* | *')'* ) exit 0 ;;
+  *'*'* | *'?'* | *'['* | *']'* | *'{'* | *'}'* ) exit 0 ;;   # glob/brace: the real shell expands these
+  *$'\n'* ) exit 0 ;;                                          # a newline would hide a 2nd line below
 esac
-# a literal newline would also split into extra tokens below (hiding a 2nd line like `rm -rf ~`);
-# build it via printf (command substitution strips a trailing newline, so pad with x then trim it).
-NL=$(printf '\nx'); NL=${NL%x}
-case "$COMMAND" in *"$NL"* ) exit 0 ;; esac
 
 # --- strip ONLY an allowlisted leading env prefix via the shared lib (defense layer 2) ---
 # A dangerous prefix (BASH_ENV/DYLD_*/GIT_SSH_COMMAND/…) or a metachar-bearing value is NOT stripped,
