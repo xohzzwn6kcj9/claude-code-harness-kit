@@ -17,6 +17,7 @@ err()  { FAIL=$((FAIL+1)); MSGS="$MSGS
 bashp() { jq -cn --arg c "$1" '{tool_name:"Bash",tool_input:{command:$c}}'; }
 bashpc(){ jq -cn --arg c "$1" --arg w "$2" '{tool_name:"Bash",cwd:$w,tool_input:{command:$c}}'; }
 writep(){ jq -cn --arg p "$1" '{tool_name:"Write",tool_input:{file_path:$p}}'; }
+tep()   { jq -cn --arg t "$1" --arg p "$2" '{tool_name:$t,tool_input:{file_path:$p}}'; }
 shotp() { jq -cn --arg f "$1" '{tool_name:"mcp__plugin_playwright_playwright__browser_take_screenshot",tool_input:{filename:$f}}'; }
 
 # expect exit 2 (hard block)
@@ -98,6 +99,49 @@ if [ -n "$P" ]; then
 else
   echo "skip: bare-interpreter-guard (python3 not on PATH)"
 fi
+
+# approve-test-run: APPROVE a safely-shaped `bash <script>.test.sh` (+ read-only pipe);
+# DEFER every smuggle vector (bash -c / env-prefix / write segment / redirect / non-.test.sh).
+T="$G/approve-test-run.sh"
+alw "$T" "$(bashp 'bash tests/x.test.sh')"                                'approve: bare relative .test.sh'
+alw "$T" "$(bashp 'bash /u/.claude/hooks/tests/x.test.sh')"              'approve: absolute path'
+alw "$T" "$(bashp 'bash -- x.test.sh')"                                  'approve: -- then script'
+alw "$T" "$(bashp 'bash x.test.sh --tail 5')"                            'approve: positional args after script'
+alw "$T" "$(bashp 'bash x.test.sh | tail -3')"                          'approve: pipe to readonly tail'
+alw "$T" "$(bashp 'bash tests/x.test.sh | tail -3 ; jq . s.json')"       'approve: pipe + ; jq'
+pas "$T" "$(bashp "bash -c 'rm -rf ~' x.test.sh")"                       'defer: bash -c payload (exploit)'
+pas "$T" "$(bashp 'BASH_ENV=~/tmp/evil.sh bash x.test.sh')"             'defer: BASH_ENV env-prefix (exploit)'
+pas "$T" "$(bashp 'FOO=1 bash x.test.sh')"                              'defer: any leading env assignment'
+pas "$T" "$(bashp 'bash -s x.test.sh')"                                 'defer: bash -s option'
+pas "$T" "$(bashp 'bash x.test.sh ; rm -rf /tmp/x')"                    'defer: ; rm write segment'
+pas "$T" "$(bashp 'bash x.test.sh && echo done')"                       'defer: && chain'
+pas "$T" "$(bashp 'bash x.test.sh > out.txt')"                          'defer: redirect out'
+pas "$T" "$(bashp 'bash x.test.sh | sh')"                              'defer: pipe to non-readonly'
+pas "$T" "$(bashp 'bash $(echo x).test.sh')"                           'defer: command substitution'
+pas "$T" "$(bashp 'bash deploy.sh')"                                   'defer: not a .test.sh'
+pas "$T" "$(bashp 'bash')"                                             'defer: bash with no script'
+pas "$T" "$(bashp 'tail -3 settings.json')"                            'defer: readonly-only (no test run)'
+pas "$T" "$(writep '/x/y.test.sh')"                                    'defer: non-Bash tool'
+o=$(printf '' | bash "$T" 2>/dev/null); [ $? -eq 0 ] && [ -z "$o" ] && note || err 'approve-test-run empty input fail-open'
+
+# enforce-test-location: BLOCK a *.test.sh written outside a tests/ dir INSIDE ~/.claude;
+# PASS inside tests/, ~/tmp, other projects, and non-(*.test.sh) files. Edit is gated too.
+E="$G/enforce-test-location.sh"
+blk "$E" "$(tep Write "$HOME/.claude/hooks/x.test.sh")"                  'block: harness root, no tests/'
+blk "$E" "$(tep Write "$HOME/.claude/skills/foo/scripts/x.test.sh")"     'block: skill scripts dir'
+blk "$E" "$(tep Edit  "$HOME/.claude/hooks/x.test.sh")"                  'block: Edit also gated'
+pas "$E" "$(tep Write "$HOME/.claude/hooks/tests/x.test.sh")"            'pass: hooks/tests/'
+pas "$E" "$(tep Write "$HOME/.claude/skills/foo/tests/x.test.sh")"       'pass: skill foo/tests/'
+pas "$E" "$(tep Write "$HOME/.claude/.worktree/feat/hooks/tests/x.test.sh")" 'pass: worktree tests/'
+pas "$E" "$(tep Edit  "$HOME/.claude/hooks/tests/x.test.sh")"            'pass: Edit valid test in tests/'
+pas "$E" "$(tep Write "$HOME/tmp/x.test.sh")"                           'pass: ~/tmp abs exempt'
+pas "$E" "$(tep Write '~/tmp/x.test.sh')"                              'pass: ~/tmp literal tilde exempt'
+pas "$E" "$(tep Write "$HOME/workspace/proj/x.test.sh")"               'pass: other project not gated'
+pas "$E" "$(tep Write "$HOME/workspace/proj/src/tests/x.test.sh")"     'pass: other project has tests/'
+pas "$E" "$(tep Write "$HOME/.claude/hooks/foo.sh")"                   'pass: plain .sh ignored'
+pas "$E" "$(tep Write "$HOME/.claude/skills/foo/scripts/test_foo.py")" 'pass: python test ignored'
+pas "$E" "$(tep Bash  "$HOME/.claude/hooks/x.test.sh")"               'pass: non Write|Edit tool defers'
+o=$(printf '' | bash "$E" 2>/dev/null); [ $? -eq 0 ] && note || err 'enforce-test-location empty input fail-open'
 
 echo "guards — pass: $PASS  fail: $FAIL"
 if [ "$FAIL" -gt 0 ]; then echo "failures:$MSGS"; exit 1; fi
