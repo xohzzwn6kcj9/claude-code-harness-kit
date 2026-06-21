@@ -39,10 +39,9 @@ COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/nul
 # while the executed command still carries BASH_ENV → bash sources evil.sh at startup. A leading
 # env assignment therefore makes the first word `VAR=…`, which matches neither bash nor a read-only
 # tool → defer (prompt). Test runs don't need env prefixes.
-EFFECTIVE_CMD="$COMMAND"
 
 # --- reject subshell / command-substitution / redirect / background / newline (keep | and ; only) ---
-case "$EFFECTIVE_CMD" in
+case "$COMMAND" in
   *'$('* | *'`'* | *'>'* | *'<'* | *'&'* | *$'\n'* ) exit 0 ;;
 esac
 
@@ -50,7 +49,7 @@ esac
 READONLY=" cat head tail less more wc grep rg sort uniq cut jq yq diff comm column nl tr fold od xxd echo printf true "
 
 SAW_TEST_RUN=0
-SEGS=$(printf '%s' "$EFFECTIVE_CMD" | tr '|;' '\n\n')
+SEGS=$(printf '%s' "$COMMAND" | tr '|;' '\n')
 while IFS= read -r SEG; do
   # trim
   SEG="${SEG#"${SEG%%[![:space:]]*}"}"
