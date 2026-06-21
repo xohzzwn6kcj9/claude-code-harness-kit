@@ -2,3 +2,8 @@
 *.bak
 .worktree/
 .claude/
+
+# Local Claude Code working files — never commit. The leading slash anchors these to
+# the repo root so they do NOT match the deliberately-shipped examples/lean-profile/CLAUDE.md.
+/CLAUDE.md
+/CLAUDE.local.md
