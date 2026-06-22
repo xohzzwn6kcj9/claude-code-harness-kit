@@ -83,6 +83,7 @@ cat ls fd find grep rg head tail wc tree pwd echo which file stat du df uname sw
 groups date env printenv ps sort uniq nl tac rev strings cmp diff comm tr cut column fold jq yq
 realpath readlink dirname basename hostname uptime printf type test true false less more od
 hexdump cksum shasum sha256sum md5 md5sum locale getconf cd git gh gradlew docker kubectl
+command hash
 ```
 
 안전한 *이름*이 안전한 *명령*을 뜻하지는 않으므로, 다음 명령들은 추가로 플래그 검증을 거칩니다:
@@ -100,6 +101,8 @@ hexdump cksum shasum sha256sum md5 md5sum locale getconf cd git gh gradlew docke
 | `docker` | `ps images inspect logs version info stats top port diff context ls/inspect` | `run rm exec build push …` |
 | `kubectl` | `get describe logs explain version top api-resources diff` | `apply delete edit scale …` |
 | `gradlew` | `tasks projects properties dependencies help --version` | `build test publish …` |
+| `command` | `command -v`/`-V <이름>`(이름을 PATH에서 해석만 — 실행 안 함) | `command <cmd> …`, `command -p <cmd> …`(`<cmd>`를 실행함) |
+| `hash` | `hash -t <이름>`(해시 테이블 조회), 인자 없는 `hash`(테이블 출력) | `hash -r/-p/-d/-l`(테이블 변경), `hash <이름>`(조회 강제) |
 
 이름을 따지기 전에 먼저 강제되는 구조적 규칙:
 
@@ -111,6 +114,14 @@ hexdump cksum shasum sha256sum md5 md5sum locale getconf cd git gh gradlew docke
 - **Heredoc**(`<<`)과 **프로세스 치환**(`<(`/`>(`)은 위임됩니다.
 - `&`(백그라운드)와 줄바꿈은 구분자입니다. 셸 키워드는 벗겨내므로 루프 본문의 `do rm $f`도 여전히
   `rm`으로 인식됩니다. 따옴표로 묶인 문자열은 비활성 데이터로 취급됩니다.
+
+> **조회(lookup) vs 실행(execution) 경계:** `which`/`type`/`command -v`·`-V`/`hash -t`는 이름을
+> PATH·해시 테이블에서 *해석만* 하고 대상 바이너리를 실행하지 않으므로, 인자가 목록에 없는 미지의
+> 명령이어도 자동 승인됩니다. 반면 `<도구> --help`/`--version`은 그 바이너리를 **실제로 실행**합니다
+> (바이너리가 `--help`를 무시하고 무엇이든 할 수 있음) — 따라서 자동 승인하지 **않습니다**(프롬프트 1회).
+> 신뢰하는 프로젝트 바이너리의 `--help`까지 자동 승인하려면 아래 `AAR_SAFE_CMDS` 확장으로 그 이름을
+> 명시적으로 추가하세요. 단 이 확장은 그 바이너리의 **모든** 호출(쓰기 서브커맨드 포함)을 신뢰하므로,
+> 위험한 서브커맨드는 `settings.permissions.deny`로 백스톱하세요.
 
 **기본 목록에 의도적으로 *넣지 않은* 것들:** `sed`/`awk`/`perl`/`python3`/`node`(따옴표 안의 프로그램
 텍스트가 파일을 쓰거나 `system()`을 호출할 수 있음), `curl`/`wget`(POST, `-o`),

@@ -118,6 +118,14 @@ ab 'git status
 git log -1'
 ab 'uniq -c'
 ab 'sort -u names.txt'
+# introspection: command -v/-V and hash -t resolve names without executing them
+ab 'command -v jira-helper'
+ab 'command -V git'
+ab 'command -v ls rm cat'
+ab 'command -v -- rm'
+ab 'hash -t git'
+ab 'hash'
+ab 'command -v gradle >/dev/null 2>&1 && echo yes'
 
 # ------------------------------------------------------------------ defer ----
 db 'rm file.txt'
@@ -196,6 +204,20 @@ db 'read x < f; rm x'
 db 'cat < f;rm x'
 db 'wc -l < f|rm x'
 db 'cat < f&&rm x'
+# introspection guards: only `command -v/-V` and `hash -t`/bare `hash` are
+# read-only; executing an unknown binary (even with --help) or mutating the
+# hash table must defer. `command rm x` above (regression guard) also covers this.
+db 'command -p curl http://x'
+db 'command jira-helper --help'
+db 'command -vV ls'
+db 'hash -r'
+db 'hash -p /evil/path ls'
+db 'hash jira-helper'
+db 'command -v rm; rm x'
+db 'command -v ls && command rm x'
+db 'command -v $(rm x)'
+db 'jira-helper --help'
+db 'which jira-helper 2>/dev/null || echo "not found"; jira-helper --help 2>/dev/null | head -50'
 
 # ------------------------------------------------------------ other tools ----
 ta 'Glob'

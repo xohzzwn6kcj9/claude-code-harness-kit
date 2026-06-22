@@ -26,7 +26,7 @@ set -uo pipefail
 # command, pipe segment, &&/||/; member, loop body, $(...) assignment body).
 # Only include commands that cannot write files or mutate state through their
 # arguments alone. Commands with dangerous flag-forms (git, gh, sort, find,
-# docker, ...) are listed here AND additionally flag-vetted below in the perl
+# docker, command, hash, ...) are listed here AND additionally flag-vetted below in the perl
 # checker — adding a name here is not enough to skip that vetting.
 #
 # Deliberately NOT included by default (add at your own risk):
@@ -40,7 +40,7 @@ echo which file stat du df uname sw_vers whoami id groups date env printenv ps \
 sort uniq nl tac rev strings cmp diff comm tr cut column fold jq yq realpath \
 readlink dirname basename hostname uptime printf type test true false less more \
 od hexdump cksum shasum sha256sum md5 md5sum locale getconf cd git gh gradlew \
-docker kubectl"}
+docker kubectl command hash"}
 
 # Commands allowed as the target of `find ... -exec/-execdir <cmd> ... ;`
 AAR_FIND_EXEC_SAFE=${AAR_FIND_EXEC_SAFE:-"cat grep egrep fgrep rg head tail wc \
@@ -293,6 +293,21 @@ for my $seg (@segs) {
   elsif ($first eq "kubectl") {
     my $sub = shift(@t) // "";
     exit 1 unless $sub =~ /^(get|describe|logs|explain|version|api-resources|api-versions|top|diff)$/;
+  }
+  elsif ($first eq "command") {
+    # `command -v NAME...` / `command -V NAME...` only RESOLVE names on PATH,
+    # they never execute NAME -> read-only like which/type. Every other form
+    # (`command NAME args`, `command -p NAME args`) EXECUTES NAME -> defer.
+    exit 1 unless @t && ($t[0] eq "-v" || $t[0] eq "-V");
+  }
+  elsif ($first eq "hash") {
+    # `hash -t NAME...` queries the hash table; bare `hash` prints it. Both are
+    # read-only. `hash -r/-p/-d/-l` mutate the table and `hash NAME` forces a
+    # lookup -> defer.
+    my $f = $t[0] // "";
+    if    ($f eq "")   { exit 1 if @t; }   # bare hash ok; hash NAME defers
+    elsif ($f eq "-t") { }                 # hash -t NAME... ok
+    else               { exit 1; }         # -r/-p/-d/-l/anything else
   }
 }
 exit 0;
