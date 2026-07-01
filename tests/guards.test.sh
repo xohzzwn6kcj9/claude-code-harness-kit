@@ -182,6 +182,28 @@ pas "$W" "$(bashp "bash /tmp/worktree.sh pr foo")"                      'defer: 
 pas "$W" "$(writep '/x/y')"                                            'defer: non-Bash tool'
 o=$(printf '' | bash "$W" 2>/dev/null); [ $? -eq 0 ] && [ -z "$o" ] && note || err 'approve-worktree-skill empty input fail-open'
 
+# skill-script-compound-guard: sibling DENY-guard to approve-worktree-skill. DENY a worktree.sh
+# call CHAINED via ;/&&/|| (approve-worktree-skill would otherwise defer with no hint, stalling an
+# unattended /loop on a bare prompt); DEFER every legitimate / out-of-scope shape.
+C="$G/skill-script-compound-guard.sh"
+den "$C" "$(bashp "bash $WT cleanup foo; echo done")"          'deny: semicolon'
+den "$C" "$(bashp "bash $WT pr foo && echo ok")"                'deny: logical-and'
+den "$C" "$(bashp "echo start || bash $WT cleanup foo")"        'deny: logical-or'
+den "$C" "$(bashp "bash $WT cleanup a && bash $WT cleanup b")"  'deny: two worktree.sh calls chained'
+den "$C" "$(bashp "bash $WTA pr foo; echo hi")"                 '\$HOME-absolute path chained'
+pas "$C" "$(bashp "cd /Users/u/repo && bash $WT pr foo")"       'defer: cd <abs> && (benign prefix stripped)'
+pas "$C" "$(bashp "bash $WT pr foo")"                           'defer: plain call (no separator)'
+pas "$C" "$(bashp "bash $WT pr foo --tail 30")"                 'defer: flags only'
+pas "$C" "$(bashp "bash $WT cleanup foo 2>&1")"                 'defer: lone 2>&1 redirect (no chain)'
+pas "$C" "$(bashp "bash $WT pr foo | tail -20")"                'defer: pure pipe (out of scope)'
+pas "$C" "$(bashp "git commit -m \"cleanup; deploy && done\"")" 'defer: separator inside double-quoted msg'
+pas "$C" "$(bashp "git commit -m 'cleanup; deploy && done'")"   'defer: separator inside single-quoted msg'
+pas "$C" "$(bashp "git commit -m \"refs $WT; note\"")"          'defer: worktree.sh path only inside a quoted arg'
+pas "$C" "$(bashp 'echo a; echo b')"                            'defer: non-worktree compound command'
+pas "$C" "$(bashp "WORKTREE_SKIP_TESTS=1 bash $WT pr foo")"     'defer: env-prefixed plain call'
+pas "$C" "$(writep '/x/y')"                                     'defer: non-Bash tool'
+o=$(printf '' | bash "$C" 2>/dev/null); [ $? -eq 0 ] && [ -z "$o" ] && note || err 'skill-script-compound-guard empty input fail-open'
+
 echo "guards — pass: $PASS  fail: $FAIL"
 if [ "$FAIL" -gt 0 ]; then echo "failures:$MSGS"; exit 1; fi
 exit 0
