@@ -49,6 +49,15 @@ blk "$G/compound-cd-guard.sh"     "$(bashp 'cd /abs && git commit')"   'abs cd b
 pas "$G/compound-cd-guard.sh"     "$(bashp 'grep "cd /home" f && git log')" 'cd only inside quoted arg (no false-fire)'
 pas "$G/compound-cd-guard.sh"     "$(bashp 'git -C /abs status && cd /abs')" 'git before cd (runs in orig dir)'
 
+blk "$G/sleep-poll-guard.sh"      "$(bashp 'while true; do sleep 2; done')"           'while busy-wait poll'
+blk "$G/sleep-poll-guard.sh"      "$(bashp 'until nc -z h 5432; do sleep 1; done')"   'until port poll'
+blk "$G/sleep-poll-guard.sh"      "$(bashp 'while ! curl -sf http://h; do sleep $DELAY; done')" 'variable-interval poll (sleep <any arg>)'
+pas "$G/sleep-poll-guard.sh"      "$(bashp 'for p in 8070 8071; do curl -s h:$p; sleep 1; done')" 'bounded for pacing (for excluded)'
+pas "$G/sleep-poll-guard.sh"      "$(bashp 'sleep 5; curl http://h')"                 'one-shot sleep, no loop'
+pas "$G/sleep-poll-guard.sh"      "$(bashp 'git for-each-ref refs/heads/ ; sleep 1')" 'git for-each-ref + sleep (not a loop kw)'
+pas "$G/sleep-poll-guard.sh"      "$(bashp 'sleep 30 && curl h # wait for the app')"  'sleep + for-in-comment (no false-fire)'
+pas "$G/sleep-poll-guard.sh"      "$(bashp 'while read l; do echo $l; done < f')"     'while loop with no sleep'
+
 den "$G/grep-tool-guard.sh"       "$(bashp 'grep -rn x --include=*.py .')" 'unquoted include glob'
 nd  "$G/grep-tool-guard.sh"       "$(bashp "grep -rn x --include='*.py' .")" 'quoted include glob (nudge ok, not deny)'
 pas "$G/grep-tool-guard.sh"       "$(bashp 'cat file.txt')"               'unrelated command'
