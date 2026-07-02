@@ -45,6 +45,9 @@ pas "$G/xargs-procsub-guard.sh"   "$(bashp 'echo "use xargs here"')"   'xargs in
 blk "$G/compound-cd-guard.sh"     "$(bashp 'cd src && ls')"            'relative cd compound'
 pas "$G/compound-cd-guard.sh"     "$(bashp 'cd /abs/path && ls')"      'absolute cd compound'
 pas "$G/compound-cd-guard.sh"     "$(bashp 'cd src')"                  'bare relative cd'
+blk "$G/compound-cd-guard.sh"     "$(bashp 'cd /abs && git commit')"   'abs cd before git (built-in cd->git gate)'
+pas "$G/compound-cd-guard.sh"     "$(bashp 'grep "cd /home" f && git log')" 'cd only inside quoted arg (no false-fire)'
+pas "$G/compound-cd-guard.sh"     "$(bashp 'git -C /abs status && cd /abs')" 'git before cd (runs in orig dir)'
 
 den "$G/grep-tool-guard.sh"       "$(bashp 'grep -rn x --include=*.py .')" 'unquoted include glob'
 nd  "$G/grep-tool-guard.sh"       "$(bashp "grep -rn x --include='*.py' .")" 'quoted include glob (nudge ok, not deny)'
