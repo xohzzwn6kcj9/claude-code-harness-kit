@@ -57,6 +57,7 @@ pas "$G/sleep-poll-guard.sh"      "$(bashp 'sleep 5; curl http://h')"           
 pas "$G/sleep-poll-guard.sh"      "$(bashp 'git for-each-ref refs/heads/ ; sleep 1')" 'git for-each-ref + sleep (not a loop kw)'
 pas "$G/sleep-poll-guard.sh"      "$(bashp 'sleep 30 && curl h # wait for the app')"  'sleep + for-in-comment (no false-fire)'
 pas "$G/sleep-poll-guard.sh"      "$(bashp 'while read l; do echo $l; done < f')"     'while loop with no sleep'
+pas "$G/sleep-poll-guard.sh"      "$(bashp $'git commit -m \'fix\nuse a while/until loop with sleep 3\ndone\'')" 'multi-line quoted -m w/ while+sleep (was FP)'
 
 den "$G/grep-tool-guard.sh"       "$(bashp 'grep -rn x --include=*.py .')" 'unquoted include glob'
 nd  "$G/grep-tool-guard.sh"       "$(bashp "grep -rn x --include='*.py' .")" 'quoted include glob (nudge ok, not deny)'
