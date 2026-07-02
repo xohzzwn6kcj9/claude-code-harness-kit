@@ -19,12 +19,16 @@ COMMAND=$(jq -r '.tool_input.command')
 # loop (the real poll would run later via `bash <file>`, not caught here). Pass.
 printf '%s\n' "$COMMAND" | grep -q '<<' && exit 0
 
-# Strip quoted strings, then strip word-boundary `#` comments to EOL, so a loop
-# keyword or `sleep` inside a quoted arg / URL / trailing comment can't false-fire.
-STRIPPED=$(printf '%s\n' "$COMMAND" | sed -E \
-  -e 's/"[^"]*"//g' \
-  -e "s/'[^']*'//g" \
-  -e 's/(^|[[:space:];&|])#.*$/\1/')
+# Neutralize non-executable text so a loop keyword / `sleep` inside a comment or a
+# (possibly MULTI-LINE) quoted arg can't false-fire: (1) strip word-boundary `#`
+# comments to EOL per line, (2) flatten newlines so a multi-line quoted string
+# collapses onto one line, (3) strip "…"/'…' quoted spans. Order matters — quotes
+# are stripped AFTER flattening so a multi-line `git commit -m '…while…sleep…'`
+# body is removed (sed is line-based and would otherwise leave it → false block).
+STRIPPED=$(printf '%s\n' "$COMMAND" \
+  | sed -E 's/(^|[[:space:];&|])#.*$/\1/' \
+  | tr '\n' ' ' \
+  | sed -E -e 's/"[^"]*"//g' -e "s/'[^']*'//g")
 
 # Gate 1: an UNBOUNDED busy-wait keyword — while/until only. A `for` iterates a
 # bounded list (`for … sleep` = pacing, not a poll) and "for" also lives inside
