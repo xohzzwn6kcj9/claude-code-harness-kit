@@ -18,7 +18,8 @@
 # Defers (exit 0 → normal permission flow) on: bash with any option before the script, ANY leading
 # env-var assignment (a stripped `BASH_ENV=…`/`ENV=…` would let bash source attacker code at startup
 # while the rest still matched — so env prefixes are NOT stripped; they defer), a non-listed command,
-# subshell `$(`/backtick, redirect `<`/`>`, background/`&` (also `&&`), an empty segment (e.g. from
+# subshell `$(`/backtick, redirect `<`/`>` (benign fd-dups `2>&1`/`1>&2` excepted — they have no
+# file target), background/`&` (also `&&`), an empty segment (e.g. from
 # `||`), or a newline. NEVER denies; only ever emits allow or exits 0. Fails open on any parse error.
 # (Creation-side pair: enforce-test-location.sh keeps *.test.sh files under tests/.)
 #
@@ -41,7 +42,16 @@ COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/nul
 # tool → defer (prompt). Test runs don't need env prefixes.
 
 # --- reject subshell / command-substitution / redirect / background / newline (keep | and ; only) ---
-case "$COMMAND" in
+# Benign fd-duplications (2>&1, 1>&2) are stripped FIRST so a test run that merges stderr into stdout
+# still qualifies. Safe because: (a) these tokens have NO file target (unlike a general >/< redirect),
+# and (b) the FULL reject case still runs on the stripped string, so any real redirect / & / $( /
+# backtick / newline that remains — or is revealed by stripping — is still caught (e.g. `… 2>&1 > evil`
+# keeps its `>` → defer). Stripping only ever REMOVES chars, never creates a new metachar. The segment
+# parser below still runs on the ORIGINAL command, so ;/|-chained non-test commands stay caught.
+SCAN=$COMMAND
+SCAN=${SCAN//2>&1/}
+SCAN=${SCAN//1>&2/}
+case "$SCAN" in
   *'$('* | *'`'* | *'>'* | *'<'* | *'&'* | *$'\n'* ) exit 0 ;;
 esac
 
