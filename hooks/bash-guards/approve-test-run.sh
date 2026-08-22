@@ -56,7 +56,20 @@ case "$SCAN" in
 esac
 
 # Read-only inspectors permitted as non-test segments (output shapers only — no write/exec).
-READONLY=" cat head tail less more wc grep rg sort uniq cut jq yq diff comm column nl tr fold od xxd echo printf true "
+#
+# ⚠️ ARG-BLIND (args are NOT inspected), so this list must contain ONLY verbs that are pure
+# stdin/named-input → STDOUT filters with NO file-WRITE and NO command-EXEC flag/positional in ANY
+# variant. Two red-team passes removed the following, each of which is a write/exec primitive an
+# arg-blind allow would launder:
+#   sort (-o/--output=) · uniq (BSD `uniq [in outfile]`) · yq (-i/--inplace) ·
+#   rg (--pre <cmd> = arbitrary exec) · xxd (`xxd [infile [outfile]]` output positional) ·
+#   od (dropped for symmetry with xxd) · tee · less/more (interactive `!cmd`, LESSOPEN exec) ·
+#   sed (-i) · awk (system()/`>` redirection)
+# This list is the SOLE authority — it is deliberately not kept "in sync" with any sibling.
+#
+# ⚠️ `grep` stays, but note it is EXEC-REACHABLE on a host where grep is shadowed by ugrep
+# (`--filter=COMMAND` runs a per-file preprocessor). If your PATH resolves grep to ugrep, drop it.
+READONLY=" cat head tail wc grep cut comm column nl tr fold echo printf true diff jq "
 
 SAW_TEST_RUN=0
 SEGS=$(printf '%s' "$COMMAND" | tr '|;' '\n')
