@@ -9,7 +9,8 @@
 #
 # Passes through (allowed):
 #   - checkout/switch to master or main
-#   - creating a new branch (-b / -B / -c / -C / --create)
+#   - creating a new branch (-b / -B / -c / -C / --create), even after other
+#     option flags (`git checkout -q -B <br> <start>`)
 #   - any command already running inside a .worktree/ path (cwd contains /.worktree/)
 #   - `git checkout -- <path>` (file restore, the `--` form)
 #
@@ -23,7 +24,7 @@ CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
 
 if printf '%s' "$COMMAND" | grep -qE 'git\s+(checkout|switch)\s+' \
   && ! printf '%s' "$COMMAND" | grep -qE 'git\s+(checkout|switch)\s+(--|master|main)(\s|$)' \
-  && ! printf '%s' "$COMMAND" | grep -qE 'git\s+(checkout|switch)\s+(-[bBcC]|--create)(\s|$)' \
+  && ! printf '%s' "$COMMAND" | grep -qE 'git\s+(checkout|switch)\s+(-[a-zA-Z]+\s+)*(-[bBcC]|--create)(\s|$)' \
   && ! printf '%s' "$CWD" | grep -q '/\.worktree/'; then
   echo 'BLOCKED: do not switch to an existing feature branch in the main worktree. Allowed: (a) inside .worktree/<name>/, (b) creating a new branch (-c/-b/--create), (c) master/main. Use `git worktree add` to start feature work.' >&2
   exit 2
