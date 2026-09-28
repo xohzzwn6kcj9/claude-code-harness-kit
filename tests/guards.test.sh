@@ -85,6 +85,8 @@ pas "$A" "$(bashp 'cat ~/tmp/a.txt')"                 'non-rm command defers'
 blk "$G/git-branch-switch-guard.sh" "$(bashpc 'git checkout feature-x' '/home/u/repo')"          'switch existing in main wt'
 pas "$G/git-branch-switch-guard.sh" "$(bashpc 'git checkout main' '/home/u/repo')"               'switch to main'
 pas "$G/git-branch-switch-guard.sh" "$(bashpc 'git checkout -b new-thing' '/home/u/repo')"       'create branch'
+pas "$G/git-branch-switch-guard.sh" "$(bashpc 'git checkout -q -B new-thing origin/main' '/home/u/repo')" 'create branch after another flag'
+blk "$G/git-branch-switch-guard.sh" "$(bashpc 'git checkout -q feature-x' '/home/u/repo')"       'flagged switch existing in main wt'
 pas "$G/git-branch-switch-guard.sh" "$(bashpc 'git checkout feature-x' '/home/u/repo/.worktree/feature-x')" 'switch inside worktree'
 
 den "$H/playwright-screenshot-guard.sh" "$(shotp 'shot.png')"             'relative screenshot'
